@@ -63,6 +63,10 @@ class CurrentSong:
     def playback_start(self) -> float:
         return self._playback_start
 
+    @playback_start.setter
+    def playback_start(self, value: float):
+        self._playback_start: str = value
+
     @property
     def title(self) -> str:
         return self._title
@@ -104,7 +108,18 @@ class CurrentSong:
         self._duration: str = value
 
 
+def copy_current_song(current_song: CurrentSong) -> CurrentSong:
+    copied: CurrentSong = CurrentSong()
+    copied.album = current_song.album
+    copied.artist = current_song.artist
+    copied.duration = current_song.duration
+    copied.playback_start = current_song.playback_start
+    copied.subtitle = current_song.subtitle
+    copied.title = current_song.title
+    return copied
+
 the_current_song: CurrentSong = None
+last_scrobbled: CurrentSong = None
 
 items = {}
 
@@ -141,6 +156,14 @@ def service_from_device(
 
 
 def maybe_scrobble(current_song: CurrentSong):
+    __maybe_scrobble(current_song)
+    global last_scrobbled
+    global the_current_song
+    last_scrobbled = copy_current_song(current_song)
+    the_current_song = None
+
+
+def __maybe_scrobble(current_song: CurrentSong):
     now: float = time.time()
     if current_song.duration:
         elapsed: float = now - current_song.playback_start
@@ -178,11 +201,13 @@ def on_event(
         dlna_handle_notify_last_change(last_change)
     else:
         for sv in service_variables:
+            # transitioning: bool = False
             # PAUSED, PLAYING, STOPPED, etc
             # print(sv.name,sv.value)
-            # print(f"sv.name [{sv.name}] sv.value [{sv.value}]")
+            # print(f"sv.name [{sv.name}]")
             if sv.name == "TransportState":
                 print(f"TransportState = [{sv.value}]")
+                # transitioning = sv.value == "TRANSITIONING"
                 if sv.value == "PLAYING":
                     playing = True
                 else:
@@ -190,21 +215,9 @@ def on_event(
                     if sv.value == "STOPPED" and the_current_song:
                         print("Scrobbling because: [STOPPED]")
                         maybe_scrobble(the_current_song)
-                        the_current_song = None
-                    # when do we try to scrobble?
-                    # TRANSITIONING
-                    # if the_current_song:
-                    #    can_scrobble: bool = True
-                    #    if sv.value == "TRANSITIONING":
-                    #        print("transitioning -> can_scrobble")
-                    #        # can_scrobble = True
-                    #    # scrobble!
-                    #    if can_scrobble:
-                    #        maybe_scrobble(the_current_song)
-                    #        the_current_song = None
             # Grab and print the metadata
-            if (sv.name == "CurrentTrackMetaData" or
-                    sv.name == "AVTransportURIMetaData"):
+            if (sv.name in ["CurrentTrackMetaData", "AVTransportURIMetaData"]):
+                metadata: bool = sv.name == "CurrentTrackMetaData"
                 # Convert XML to beautiful JSON
                 items = xmltodict.parse(sv.value)["DIDL-Lite"]["item"]
                 # Print the entire mess
@@ -213,7 +226,6 @@ def on_event(
                     # scrobble!
                     print(f"We want to scrobble because: [{sv.name}]")
                     maybe_scrobble(the_current_song)
-                    the_current_song = None
                 # start creating a new CurrentSong instance
                 current_song: CurrentSong = CurrentSong()
                 current_song.title = items[key_title] if key_title in items else None
@@ -236,18 +248,19 @@ def on_event(
                     # print("Art:", art)
                 except Exception:
                     pass
-
-                if (not the_current_song or
-                        current_song.title != the_current_song.title or
-                        current_song.subtitle != the_current_song.subtitle or
-                        current_song.artist != the_current_song.artist or
-                        current_song.album != the_current_song.album):
-                    print("Replacing the_current_song")
+                if (metadata and (not the_current_song or
+                                  current_song.title != the_current_song.title or
+                                  current_song.subtitle != the_current_song.subtitle or
+                                  current_song.artist != the_current_song.artist or
+                                  current_song.album != the_current_song.album)):
+                    print(f"[{sv.name}] => Setting current_song with "
+                          f"[{current_song.title}] from [{current_song.album}] "
+                          f"by [{current_song.artist}]")
                     the_current_song = current_song
                     if not current_song.duration:
                         print("No duration available, won't be able to scrobble!")
                 else:
-                    print("Sticking with the same current_song")
+                    print(f"Sticking with the same current_song [{sv.name}]")
 
 
 async def subscribe(description_url: str, service_names: Any) -> None:
