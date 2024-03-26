@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        base: ["python"]
+        base: ["stable"]
 
     steps:
       - name: Checkout
@@ -37,7 +37,7 @@ jobs:
           echo "REF: ["$ref"]"
 
           declare -A base_image_from_matrix
-          base_image_from_matrix[python]=library/python:3.9-slim
+          base_image_from_matrix[stable]=library/python:3.9-slim
 
           select_base_image=${base_image_from_matrix[${{ matrix.base }}]}
           if [ -z "${select_base_image}" ]; then
@@ -49,7 +49,7 @@ jobs:
           special_tags[stable]="${image_name}:latest,${image_name}:stable"
 
           declare -A distro_friendly_name_dict
-          distro_friendly_name_dict[python]=python
+          distro_friendly_name_dict[stable]=stable
 
           distro_friendly_name=${{ matrix.base }}
           lookup_distro_name=${distro_friendly_name_dict[${{ matrix.base }}]}
