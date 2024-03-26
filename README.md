@@ -9,6 +9,13 @@ It seems that I cannot get a valid link to the user profile on that board, but a
 A big thank you goes to him/her for the code he/she shared.    
 I then used [pylast](https://github.com/pylast/pylast), as suggested in that thread, for the actual operations on [last.fm](https://www.last.fm/).  
 
+## Links
+
+REPOSITORY TYPE|LINK
+:---|:---
+Git Repository|[GitHub](https://github.com/GioF71/upnp-scrobbler)
+Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-scrobbler)
+
 ## Task List
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
