@@ -1,6 +1,6 @@
 # UPnP Scrobbler
 
-A simple LAST.fm scrobbler for UPnP players.
+A simple LAST.fm scrobbler for WiiM devices.
 
 ## References
 
