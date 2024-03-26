@@ -6,8 +6,9 @@ A simple LAST.fm scrobbler for UPnP players.
 
 ### Inspiration
 
-I started this working taking [this code](https://forum.wiimhome.com/threads/last-fm.3144/post-44653) as the starting point.  
-It seems that I cannot link the user profile on that board, but anyway the nickname is `cc_rider`.  
+I started taking the code published in [this post](https://forum.wiimhome.com/threads/last-fm.3144/post-44653) as the starting point.  
+It seems that I cannot get a valid link to the user profile on that board, but anyway the nickname is `cc_rider`.  
+A big thank you goes to him/her for the code he/she shared.    
 I then used [pylast](https://github.com/pylast/pylast), as suggested in that thread, for the actual operations on [last.fm](https://www.last.fm/).  
 
 ### Task List
@@ -15,7 +16,7 @@ I then used [pylast](https://github.com/pylast/pylast), as suggested in that thr
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
 - [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker), using it as a generic UPnP Renderer
-
+- [ ] Scrobbling to libre.fm
 
 ## Build
 
