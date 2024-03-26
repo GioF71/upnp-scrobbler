@@ -21,4 +21,4 @@ jobs:
           pass: ${{ secrets.DOCKER_TOKEN }}
           slug: ${{ secrets.DOCKER_USERNAME }}/upnp-scrobbler
           readme: ./README.md
-          description: Run upnp-scrobbler with docker
+          description: Scrobble to last.fm from your WiiM device
