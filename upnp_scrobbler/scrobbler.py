@@ -41,6 +41,22 @@ key_album: str = "upnp:album"
 key_duration: tuple[str, str] = ["res", "@duration"]
 
 
+DEFAULT_DURATION_THRESHOLD: int = 240
+DEFAULT_DUMP_UPNP_DATA: bool = False
+
+
+def get_dump_upnp_data() -> bool:
+    dump_cfg: str = os.getenv("DUMP_UPNP_DATA")
+    if not dump_cfg: return DEFAULT_DUMP_UPNP_DATA
+    return bool(dump_cfg)
+
+
+def get_duration_threshold() -> int:
+    duration_cfg: str = os.getenv("DURATION_THRESHOLD")
+    if not duration_cfg: return DEFAULT_DURATION_THRESHOLD
+    return int(duration_cfg)
+
+
 def duration_str_to_sec(duration: str) -> float:
     # print(f"duration_str_to_sec duration [{duration}]")
     millis: str = duration[len(duration) - 3:]
@@ -173,7 +189,7 @@ def __maybe_scrobble(current_song: CurrentSong):
     if current_song.duration:
         elapsed: float = now - current_song.playback_start
         # print(f"maybe_scrobble elapsed: [{elapsed}]")
-        if elapsed >= 10.0 or elapsed >= (current_song.duration / 2.0):
+        if elapsed >= get_duration_threshold() or elapsed >= (current_song.duration / 2.0):
             print(f"maybe_scrobble we can scrobble [{current_song.title}] "
                   f"from [{current_song.album}] "
                   f"by [{current_song.artist}]")
@@ -194,28 +210,34 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
     last_fm_key: str = os.getenv("LAST_FM_API_KEY")
     last_fm_secret: str = os.getenv("LAST_FM_SHARED_SECRET")
     last_fm_username: str = os.getenv("LAST_FM_USERNAME")
-    last_fm_password: str = os.getenv("LAST_FM_PASSWORD_HASH")
-    if not last_fm_password:
+    last_fm_password_hash: str = os.getenv("LAST_FM_PASSWORD_HASH")
+    if not last_fm_password_hash:
         # try cleartext
-        clear_text: str = os.getenv("LAST_FM_PASSWORD")
-        last_fm_password = pylast.md5(clear_text)
-    print(f"Cred dump: [{last_fm_key}] [{last_fm_secret}] [{last_fm_username}] [{last_fm_password}]")
+        password: str = os.getenv("LAST_FM_PASSWORD")
+        last_fm_password_hash = pylast.md5(password)
     network: pylast.LastFMNetwork = pylast.LastFMNetwork(
         api_key=last_fm_key,
         api_secret=last_fm_secret,
         username=last_fm_username,
-        password_hash=last_fm_password)
+        password_hash=last_fm_password_hash)
     return network
+
+
+def last_fm_update_now_playing(current_song: CurrentSong):
+    network: pylast.LastFMNetwork = create_last_fm_network()
+    network.update_now_playing(
+        artist=get_first_artist(current_song.artist),
+        title=current_song.title,
+        album=current_song.album,
+        duration=int(current_song.duration))
 
 
 def last_fm_scrobble(current_song: CurrentSong):
     network: pylast.LastFMNetwork = create_last_fm_network()
-    # track: pylast.Track = network.get_track(artist=current_song.artist, title=current_song.title)
-    # artist: pylast.Artist = network.get_artist(artist_name=get_first_artist(current_song.artist))
     unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
     network.scrobble(
-        artist=current_song.artist,
-        title=get_first_artist(current_song.title),
+        artist=get_first_artist(current_song.artist),
+        title=current_song.title,
         timestamp=unix_timestamp)
 
 
@@ -229,12 +251,6 @@ def on_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP event."""
-    obj = {
-        "timestamp": get_timestamp(),
-        "service_id": service.service_id,
-        "service_type": service.service_type,
-        "state_variables": {sv.name: sv.value for sv in service_variables},
-    }
     global playing
     global items
     global the_current_song
@@ -265,10 +281,11 @@ def on_event(
                 # Convert XML to beautiful JSON
                 items = xmltodict.parse(sv.value)["DIDL-Lite"]["item"]
                 # Print the entire mess
-                # print(json.dumps(items, indent=4))
+                if get_dump_upnp_data():
+                    print(json.dumps(items, indent=4))
                 if the_current_song and metadata:
-                    # scrobble!
-                    print(f"We want to scrobble because: [{sv.name}]")
+                    # song changed -> scrobble!
+                    print(f"We want to scrobble because the song changed: [{sv.name}]")
                     maybe_scrobble(the_current_song)
                 # start creating a new CurrentSong instance
                 current_song: CurrentSong = CurrentSong()
@@ -281,17 +298,6 @@ def on_event(
                                      else None)
                 if duration_str:
                     current_song.duration = duration_str_to_sec(duration_str)
-                # Print each item of interest
-                try:
-                    arttmp = items["upnp:albumArtURI"]
-                    art: str = None
-                    if isinstance(arttmp, dict):
-                        art = art["#text"]
-                    else:
-                        art = arttmp
-                    # print("Art:", art)
-                except Exception:
-                    pass
                 if (metadata and (not the_current_song or
                                   current_song.title != the_current_song.title or
                                   current_song.subtitle != the_current_song.subtitle or
@@ -303,6 +309,8 @@ def on_event(
                     the_current_song = current_song
                     if not current_song.duration:
                         print("No duration available, won't be able to scrobble!")
+                    else:
+                        last_fm_update_now_playing(current_song)
                 else:
                     print(f"Sticking with the same current_song [{sv.name}]")
 
@@ -347,7 +355,9 @@ async def async_main() -> None:
     """Async main."""
     #  NOTICE!!!! #####################################
     #  Your WiiM Mini's IP and port go here
-    device = "http://192.168.1.7:49152/description.xml"
+    device = os.getenv("DEVICE_URL")
+    if not device:
+        raise Exception("The variable DEVICE_URL is mandatory")
     service = ["AVTransport"]
     await subscribe(
         description_url=device,
