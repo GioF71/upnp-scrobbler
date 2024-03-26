@@ -15,7 +15,7 @@ I then used [pylast](https://github.com/pylast/pylast), as suggested in that thr
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker), using it as a generic UPnP Renderer
+- [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [ ] Scrobbling to libre.fm
 
 ## Build
