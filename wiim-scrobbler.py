@@ -8,6 +8,10 @@ import sys
 import time
 import xmltodict
 from typing import Any, Optional, Sequence, Union
+import os
+import datetime
+import pylast
+# from pylast.scrobble import scrobble_tra
 
 # from didl_lite import didl_lite
 
@@ -118,6 +122,7 @@ def copy_current_song(current_song: CurrentSong) -> CurrentSong:
     copied.title = current_song.title
     return copied
 
+
 the_current_song: CurrentSong = None
 last_scrobbled: CurrentSong = None
 
@@ -144,8 +149,8 @@ def get_timestamp() -> Union[str, float]:
 
 
 def service_from_device(
-      device: UpnpDevice,
-      service_name: str) -> Optional[UpnpService]:
+        device: UpnpDevice,
+        service_name: str) -> Optional[UpnpService]:
     """Get UpnpService from UpnpDevice by name or part or abbreviation."""
     for service in device.all_services:
         part = service.service_id.split(":")[-1]
@@ -160,7 +165,7 @@ def maybe_scrobble(current_song: CurrentSong):
     global last_scrobbled
     global the_current_song
     last_scrobbled = copy_current_song(current_song)
-    the_current_song = None
+    # the_current_song = None
 
 
 def __maybe_scrobble(current_song: CurrentSong):
@@ -168,22 +173,61 @@ def __maybe_scrobble(current_song: CurrentSong):
     if current_song.duration:
         elapsed: float = now - current_song.playback_start
         # print(f"maybe_scrobble elapsed: [{elapsed}]")
-        if elapsed >= 240.0 or elapsed >= (current_song.duration / 2.0):
+        if elapsed >= 10.0 or elapsed >= (current_song.duration / 2.0):
             print(f"maybe_scrobble we can scrobble [{current_song.title}] "
                   f"from [{current_song.album}] "
                   f"by [{current_song.artist}]")
+            last_fm_scrobble(current_song=current_song)
+            return True
         else:
             print(f"maybe_scrobble cannot scrobble [{current_song.title}] "
                   f"from [{current_song.album}] "
                   f"by [{current_song.artist}], "
                   f"elapsed: [{elapsed}] duration: [{current_song.duration}]")
+            return True
     else:
         print("Song has no duration, cannot scrobble")
+        return False
+
+
+def create_last_fm_network() -> pylast.LastFMNetwork:
+    last_fm_key: str = os.getenv("LAST_FM_API_KEY")
+    last_fm_secret: str = os.getenv("LAST_FM_SHARED_SECRET")
+    last_fm_username: str = os.getenv("LAST_FM_USERNAME")
+    last_fm_password: str = os.getenv("LAST_FM_PASSWORD_HASH")
+    if not last_fm_password:
+        # try cleartext
+        clear_text: str = os.getenv("LAST_FM_PASSWORD")
+        last_fm_password = pylast.md5(clear_text)
+    print(f"Cred dump: [{last_fm_key}] [{last_fm_secret}] [{last_fm_username}] [{last_fm_password}]")
+    network: pylast.LastFMNetwork = pylast.LastFMNetwork(
+        api_key=last_fm_key,
+        api_secret=last_fm_secret,
+        username=last_fm_username,
+        password_hash=last_fm_password)
+    return network
+
+
+def last_fm_scrobble(current_song: CurrentSong):
+    network: pylast.LastFMNetwork = create_last_fm_network()
+    # track: pylast.Track = network.get_track(artist=current_song.artist, title=current_song.title)
+    # artist: pylast.Artist = network.get_artist(artist_name=get_first_artist(current_song.artist))
+    unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
+    network.scrobble(
+        artist=current_song.artist,
+        title=get_first_artist(current_song.title),
+        timestamp=unix_timestamp)
+
+
+def get_first_artist(artist: str) -> str:
+    if not artist: return None
+    artist_list: list[str] = artist.split(",")
+    return artist_list[0] if artist_list and len(artist_list) > 0 else None
 
 
 def on_event(
-      service: UpnpService,
-      service_variables: Sequence[UpnpStateVariable]) -> None:
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP event."""
     obj = {
         "timestamp": get_timestamp(),
@@ -222,7 +266,7 @@ def on_event(
                 items = xmltodict.parse(sv.value)["DIDL-Lite"]["item"]
                 # Print the entire mess
                 # print(json.dumps(items, indent=4))
-                if the_current_song and sv.name == "CurrentTrackMetaData":
+                if the_current_song and metadata:
                     # scrobble!
                     print(f"We want to scrobble because: [{sv.name}]")
                     maybe_scrobble(the_current_song)
