@@ -7,22 +7,16 @@ import json
 import sys
 import time
 import xmltodict
-from typing import Any, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 import os
 import datetime
 import pylast
-# from pylast.scrobble import scrobble_tra
 
-# from didl_lite import didl_lite
-
-# from async_upnp_client.advertisement import SsdpAdvertisementListener
 from async_upnp_client.aiohttp import AiohttpNotifyServer, AiohttpRequester
 from async_upnp_client.client import UpnpDevice, UpnpService, UpnpStateVariable
 from async_upnp_client.client_factory import UpnpFactory
-# from async_upnp_client.const import AddressTupleVXType, SsdpHeaders
 from async_upnp_client.exceptions import UpnpResponseError
 from async_upnp_client.profiles.dlna import dlna_handle_notify_last_change
-# from async_upnp_client.search import async_search as async_ssdp_search
 from async_upnp_client.utils import get_local_ip
 
 NAMESPACES = {
@@ -261,27 +255,23 @@ def on_event(
         dlna_handle_notify_last_change(last_change)
     else:
         for sv in service_variables:
-            # transitioning: bool = False
-            # PAUSED, PLAYING, STOPPED, etc
-            # print(sv.name,sv.value)
-            # print(f"sv.name [{sv.name}]")
+            # PAUSED, PLAYING, STOPPED, TRANSITIONING, etc
             if sv.name == "TransportState":
                 print(f"TransportState = [{sv.value}]")
-                # transitioning = sv.value == "TRANSITIONING"
                 if sv.value == "PLAYING":
                     playing = True
                 else:
                     playing = False
                     if sv.value == "STOPPED" and the_current_song:
-                        print("Scrobbling because: [STOPPED]")
+                        print(f"Scrobbling because: [{sv.value}]")
                         maybe_scrobble(the_current_song)
             # Grab and print the metadata
             if (sv.name in ["CurrentTrackMetaData", "AVTransportURIMetaData"]):
                 metadata: bool = sv.name == "CurrentTrackMetaData"
                 # Convert XML to beautiful JSON
                 items = xmltodict.parse(sv.value)["DIDL-Lite"]["item"]
-                # Print the entire mess
                 if get_dump_upnp_data():
+                    # Print the entire mess
                     print(json.dumps(items, indent=4))
                 if the_current_song and metadata:
                     # song changed -> scrobble!
@@ -315,7 +305,7 @@ def on_event(
                     print(f"Sticking with the same current_song [{sv.name}]")
 
 
-async def subscribe(description_url: str, service_names: Any) -> None:
+async def subscribe(description_url: str, service_names: any) -> None:
     """Subscribe to service(s) and output updates."""
     global event_handler  # pylint: disable=global-statement
     device = await create_device(description_url)
