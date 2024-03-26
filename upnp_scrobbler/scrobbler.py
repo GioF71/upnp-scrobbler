@@ -56,18 +56,14 @@ def get_duration_threshold() -> int:
 
 
 def duration_str_to_sec(duration: str) -> float:
-    # print(f"duration_str_to_sec duration [{duration}]")
     millis: str = duration[len(duration) - 3:]
     seconds: str = duration[len(duration) - 6:len(duration) - 4]
     minutes: str = duration[len(duration) - 9:len(duration) - 7]
     hours: str = duration[0:len(duration) - 10]
-    # print(f"duration_str_to_sec millis: [{millis}] seconds: [{seconds}] "
-    #       f"minutes: [{minutes}] hours: [{hours}]")
     result: float = (float(int(millis) / 1000.0)
                      + float(int(seconds))
                      + float(int(minutes) * 60.0)
                      + float(int(hours) * 3600.0))
-    # print(f"Result duration: [{result}]")
     return result
 
 
@@ -131,6 +127,14 @@ class CurrentSong:
         self._duration: str = value
 
 
+def same_song(left: CurrentSong, right: CurrentSong) -> bool:
+    return (left.album == right.album and
+            left.artist == right.artist and
+            left.duration == right.duration and
+            left.subtitle == right.subtitle and
+            left.title == right.title)
+
+
 def copy_current_song(current_song: CurrentSong) -> CurrentSong:
     copied: CurrentSong = CurrentSong()
     copied.album = current_song.album
@@ -145,9 +149,7 @@ def copy_current_song(current_song: CurrentSong) -> CurrentSong:
 the_current_song: CurrentSong = None
 last_scrobbled: CurrentSong = None
 
-items = {}
-
-pprint_indent = 4
+items: dict = {}
 
 event_handler = None
 playing = False
@@ -179,15 +181,25 @@ def service_from_device(
     return None
 
 
+# we accept new scrobbles for the same song after (seconds) ...
+minimum_delta: float = 10.0
+
+
 def maybe_scrobble(current_song: CurrentSong):
-    __maybe_scrobble(current_song)
     global last_scrobbled
     global the_current_song
-    last_scrobbled = copy_current_song(current_song)
+    if last_scrobbled and same_song(current_song, last_scrobbled):
+        # too close in time?
+        delta: float = current_song.playback_start - last_scrobbled.playback_start
+        if delta < minimum_delta:
+            print("Requesting a new scrobble for the same song again too early, not scrobbling")
+            return
+    if __maybe_scrobble(current_song):
+        last_scrobbled = copy_current_song(current_song)
     # the_current_song = None
 
 
-def __maybe_scrobble(current_song: CurrentSong):
+def __maybe_scrobble(current_song: CurrentSong) -> bool:
     now: float = time.time()
     if current_song.duration:
         elapsed: float = now - current_song.playback_start
@@ -202,7 +214,7 @@ def __maybe_scrobble(current_song: CurrentSong):
                   f"from [{current_song.album}] "
                   f"by [{current_song.artist}], "
                   f"elapsed: [{elapsed}] duration: [{current_song.duration}]")
-            return True
+            return False
     else:
         print("Song has no duration, cannot scrobble")
         return False
@@ -354,8 +366,7 @@ async def subscribe(description_url: str, service_names: any) -> None:
 
 async def async_main() -> None:
     """Async main."""
-    #  NOTICE!!!! #####################################
-    #  Your WiiM Mini's IP and port go here
+    #  Your device's IP and port go here
     device = os.getenv("DEVICE_URL")
     if not device:
         raise Exception("The variable DEVICE_URL is mandatory")
