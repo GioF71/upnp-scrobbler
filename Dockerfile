@@ -1,9 +1,17 @@
 FROM python:3.9-slim AS BASE
 
+RUN apt-get update
+RUN apt-get install -y build-essential
+
 WORKDIR /app
 
 COPY requirements.txt requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
+
+RUN apt-get remove -y build-essential
+RUN apt-get autoremove -y
+
+RUN rm -rf /var/lib/apt/lists/*
 
 FROM scratch
 COPY --from=BASE / /
