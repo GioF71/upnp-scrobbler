@@ -7,10 +7,11 @@ import json
 import sys
 import time
 import xmltodict
-from typing import Optional, Sequence, Union
 import os
 import datetime
 import pylast
+
+from typing import Optional, Sequence, Union
 
 from async_upnp_client.aiohttp import AiohttpNotifyServer, AiohttpRequester
 from async_upnp_client.client import UpnpDevice, UpnpService, UpnpStateVariable
@@ -19,21 +20,11 @@ from async_upnp_client.exceptions import UpnpResponseError
 from async_upnp_client.profiles.dlna import dlna_handle_notify_last_change
 from async_upnp_client.utils import get_local_ip
 
-NAMESPACES = {
-    "didl_lite": "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/",
-    "dc": "http://purl.org/dc/elements/1.1/",
-    "upnp": "urn:schemas-upnp-org:metadata-1-0/upnp/",
-    "xsi": "http://www.w3.org/2001/XMLSchema-instance",
-    "song": "www.wiimu.com/song/",
-    "custom": "www.linkplay.com/custom/",
-}
-
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
 key_artist: str = "upnp:artist"
 key_album: str = "upnp:album"
 key_duration: tuple[str, str] = ["res", "@duration"]
-
 
 DEFAULT_DURATION_THRESHOLD: int = 240
 DEFAULT_DUMP_UPNP_DATA: bool = False
@@ -304,6 +295,9 @@ def on_event(
                     if not current_song.duration:
                         print("No duration available, won't be able to scrobble!")
                     else:
+                        print(f"Updating [now playing] to song "
+                              f"[{current_song.title}] from [{current_song.album}] "
+                              f"by [{get_first_artist(current_song.artist)}]")
                         last_fm_update_now_playing(current_song)
                 else:
                     print(f"Sticking with the same current_song [{sv.name}]")
