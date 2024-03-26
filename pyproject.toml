@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "upnp-scrobbler"
+version = "0.1.0"
+description = "A LAST.fm scrobbler for UPnP players"
+authors = ["GioF_71 <giovanni.fulco@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "3.9"
+xmltodict
+requests
+python-didl-lite
+async-upnp-client
+pylast
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

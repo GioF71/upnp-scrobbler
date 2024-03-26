@@ -1,0 +1,5 @@
+xmltodict
+requests
+python-didl-lite
+async-upnp-client
+pylast
