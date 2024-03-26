@@ -72,6 +72,11 @@ class CurrentSong:
     def __init__(self):
         # keep track of creation time
         self._playback_start: float = time.time()
+        self._title: str = None
+        self._subtitle: str = None
+        self._artist: str = None
+        self._album: str = None
+        self._duration: float = None
 
     @property
     def playback_start(self) -> float:
