@@ -182,7 +182,6 @@ def __maybe_scrobble(current_song: CurrentSong):
     now: float = time.time()
     if current_song.duration:
         elapsed: float = now - current_song.playback_start
-        # print(f"maybe_scrobble elapsed: [{elapsed}]")
         if elapsed >= get_duration_threshold() or elapsed >= (current_song.duration / 2.0):
             print(f"maybe_scrobble we can scrobble [{current_song.title}] "
                   f"from [{current_song.album}] "
