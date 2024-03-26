@@ -31,16 +31,22 @@ DEFAULT_DUMP_UPNP_DATA: bool = False
 DEFAULT_ENABLE_NOW_PLAYING: bool = True
 
 
-def get_enable_now_playing() -> bool:
-    cfg: str = os.getenv("ENABLE_NOW_PLAYING")
-    if not cfg: return DEFAULT_ENABLE_NOW_PLAYING
+def get_bool_config(env_key: str, default_value: bool) -> bool:
+    cfg: str = os.getenv(env_key)
+    if not cfg: return default_value
     return cfg.upper() == 'Y' or cfg.upper() == 'YES'
+
+
+def get_enable_now_playing() -> bool:
+    return get_bool_config(
+        env_key="ENABLE_NOW_PLAYING",
+        default_value=DEFAULT_ENABLE_NOW_PLAYING)
 
 
 def get_dump_upnp_data() -> bool:
-    cfg: str = os.getenv("DUMP_UPNP_DATA")
-    if not cfg: return DEFAULT_DUMP_UPNP_DATA
-    return cfg.upper() == 'Y' or cfg.upper() == 'YES'
+    return get_bool_config(
+        env_key="DUMP_UPNP_DATA",
+        default_value=DEFAULT_DUMP_UPNP_DATA)
 
 
 def get_duration_threshold() -> int:
