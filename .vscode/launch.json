@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: scrobbler",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/upnp_scrobbler/scrobbler.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
