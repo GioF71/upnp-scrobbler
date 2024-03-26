@@ -1,0 +1,124 @@
+name: Publish Regular multi-arch Docker images
+
+on:
+  push:
+    tags:
+      - "release/*"
+      - "feature/*"
+      - "daily/*"
+      - "v*" # release
+      - "f*" # feature
+      - "d*" # daily
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ["python"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare for docker build
+        id: prepare
+        run: |
+          image_name=${{secrets.DOCKER_USERNAME}}/upnp-scrobbler
+
+          ref_type=${{ github.ref_type }}
+          echo "REF_TYPE: ["$ref_type"]"
+
+          ref_name=${{ github.ref_name }}
+          echo "REF_NAME: ["$ref_name"]"
+
+          ref=${{ github.ref }}
+          echo "REF: ["$ref"]"
+
+          declare -A base_image_from_matrix
+          base_image_from_matrix[python]=library/python:3.9-slim
+
+          select_base_image=${base_image_from_matrix[${{ matrix.base }}]}
+          if [ -z "${select_base_image}" ]; then
+            select_base_image=library/python:3.9-slim
+          fi
+          echo "Select Base Image [" $select_base_image "]"
+
+          declare -A special_tags
+          special_tags[stable]="${image_name}:latest,${image_name}:stable"
+
+          declare -A distro_friendly_name_dict
+          distro_friendly_name_dict[python]=python
+
+          distro_friendly_name=${{ matrix.base }}
+          lookup_distro_name=${distro_friendly_name_dict[${{ matrix.base }}]}
+          if [ -n "${lookup_distro_name}" ]; then
+            distro_friendly_name=$lookup_distro_name
+          fi
+
+          tags=""
+          if [ "${ref_type}" = "tag" ]; then
+            echo "tag mode"
+            echo "tag is ["${ref_name}"]"
+            if [[ "${ref_name}" = *"/"* ]]; then
+              tag_type=$(echo ${ref_name} | cut -d '/' -f 1)
+              tag_name=$(echo ${ref_name} | cut -d '/' -f 2) 
+            else
+              if [[ "${ref_name}" = "v"* || "${ref_name}" = "f"* || "${ref_name}" = "d"* ]]; then
+                tag_type=${ref_name:0:1}
+                tag_name=${ref_name:1}
+              fi
+            fi
+            echo "tag_type=[$tag_type]"
+            echo "tag_name=[$tag_name]"
+            if [[ "${tag_type}" == "release" || "${tag_type}" == "v" ]]; then
+              echo "release tag"
+              tags="$image_name:${distro_friendly_name}"
+              tags="$tags,$image_name:${distro_friendly_name}-${tag_name}"
+              special_tag_lookup="${{ matrix.base }}"
+              select_special_tags=${special_tags["${special_tag_lookup}"]}
+              building_now="${distro_friendly_name}"
+              echo "Building now: ["$building_now"]"
+              if [[ -n "${select_special_tags}" ]]; then
+                echo "Found special tags for ["${building_now}"]=["${select_special_tags}"]"
+                tags="$tags,${select_special_tags}"
+              else
+                echo "No special tags found for ["${building_now}"]"
+              fi
+            elif [[ "${tag_type}" == "feature" || "${tag_type}" == "f" ]]; then
+              echo "feature tag"
+              tags="${image_name}:feature-${tag_name}-${distro_friendly_name}"
+            elif [[ "${tag_type}" = "daily" || "${tag_type}" = "d" ]]; then
+              echo "daily build"
+              tags="${image_name}:daily-${distro_friendly_name}"
+            fi
+          fi
+          echo "Building tags: ["${tags}"]"
+          echo "RELEASE_TAGS=${tags}" >> $GITHUB_OUTPUT
+          echo "BASE_IMAGE=${select_base_image}" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            BASE_IMAGE=${{ steps.prepare.outputs.BASE_IMAGE }}
+          platforms: linux/amd64,linux/arm64/v8,linux/arm/v7,linux/arm/v5
+          push: true
+          tags: ${{ steps.prepare.outputs.RELEASE_TAGS }}
