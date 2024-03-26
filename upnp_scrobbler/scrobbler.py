@@ -28,12 +28,19 @@ key_duration: tuple[str, str] = ["res", "@duration"]
 
 DEFAULT_DURATION_THRESHOLD: int = 240
 DEFAULT_DUMP_UPNP_DATA: bool = False
+DEFAULT_ENABLE_NOW_PLAYING: bool = True
+
+
+def get_enable_now_playing() -> bool:
+    cfg: str = os.getenv("ENABLE_NOW_PLAYING")
+    if not cfg: return DEFAULT_ENABLE_NOW_PLAYING
+    return cfg.upper() == 'Y' or cfg.upper() == 'YES'
 
 
 def get_dump_upnp_data() -> bool:
-    dump_cfg: str = os.getenv("DUMP_UPNP_DATA")
-    if not dump_cfg: return DEFAULT_DUMP_UPNP_DATA
-    return bool(dump_cfg)
+    cfg: str = os.getenv("DUMP_UPNP_DATA")
+    if not cfg: return DEFAULT_DUMP_UPNP_DATA
+    return cfg.upper() == 'Y' or cfg.upper() == 'YES'
 
 
 def get_duration_threshold() -> int:
@@ -281,8 +288,7 @@ def on_event(
                 duration_str: str = (items[key_duration[0]][key_duration[1]]
                                      if key_duration[0] in items and key_duration[1] in items[key_duration[0]]
                                      else None)
-                if duration_str:
-                    current_song.duration = duration_str_to_sec(duration_str)
+                if duration_str: current_song.duration = duration_str_to_sec(duration_str)
                 if (metadata and (not the_current_song or
                                   current_song.title != the_current_song.title or
                                   current_song.subtitle != the_current_song.subtitle or
@@ -295,10 +301,11 @@ def on_event(
                     if not current_song.duration:
                         print("No duration available, won't be able to scrobble!")
                     else:
-                        print(f"Updating [now playing] to song "
+                        update_now_playing: bool = get_enable_now_playing()
+                        print(f"Updating [now playing] [{'yes' if update_now_playing else 'no'}] for new song "
                               f"[{current_song.title}] from [{current_song.album}] "
                               f"by [{get_first_artist(current_song.artist)}]")
-                        last_fm_update_now_playing(current_song)
+                        if update_now_playing: last_fm_update_now_playing(current_song)
                 else:
                     print(f"Sticking with the same current_song [{sv.name}]")
 

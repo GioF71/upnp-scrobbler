@@ -48,6 +48,7 @@ LAST_FM_SHARED_SECRET|Your LAST.fm api key
 LAST_FM_USERNAME|Your LAST.fm account username
 LAST_FM_PASSWORD_HASH|Your LAST.fm account password encoded using md5
 LAST_FM_PASSWORD|Your LAST.fm account password in clear text, used when LAST_FM_PASSWORD_HASH is not provided
+ENABLE_NOW_PLAYING|Update `now playing` information if set to `yes` (default)
 DURATION_THRESHOLD|Minimum duration required from scrobbling (unless at least half of the duration has elapsed), defaults to `240`
 
 ## Running
