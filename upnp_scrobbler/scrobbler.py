@@ -71,10 +71,6 @@ def duration_str_to_sec(duration: str) -> float:
     hours: str = "0"
     if len(left_split) > 2:
         hours = left_split[len(left_split) - 2]
-    #has_millis: bool = len(duration) > 3 and duration[len(duration) - 4] == "."
-    #millis: str = 0
-    #if has_millis:
-    #    millis = duration[len(duration) - 3:]
     print(f"duration_str_to_sec duration=[{duration}] -> h:[{hours}] m:[{minutes}] s:[{seconds}] millis:[{millis}] ...")
     result: float = (float(int(millis) / 1000.0)
                      + float(int(seconds))
