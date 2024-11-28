@@ -56,10 +56,22 @@ def get_duration_threshold() -> int:
 
 
 def duration_str_to_sec(duration: str) -> float:
-    millis: str = duration[len(duration) - 3:]
-    seconds: str = duration[len(duration) - 6:len(duration) - 4]
-    minutes: str = duration[len(duration) - 9:len(duration) - 7]
-    hours: str = duration[0:len(duration) - 10]
+    print(f"duration_str_to_sec duration=[{duration}] ...")
+    by_dot: list[str] = duration.split(".")
+    print(f"duration_str_to_sec duration=[{duration}] -> by_dot:[{by_dot}] ...")
+    millis: str = 0 if len(by_dot) == 1 else by_dot[1]
+    left: str = by_dot[0]
+    print(f"duration_str_to_sec duration=[{duration}] -> left:[{left}] millis:[{millis}]...")
+
+    left_split: list[str] = left.split(":")
+    seconds: str = left_split[len(left_split) - 1]
+    minutes: str = "0"
+    if len(left_split) > 1:
+        minutes = left_split[len(left_split) - 1]
+    hours: str = "0"
+    if len(left_split) > 2:
+        hours = left_split[len(left_split) - 2]
+    print(f"duration_str_to_sec duration=[{duration}] -> h:[{hours}] m:[{minutes}] s:[{seconds}] millis:[{millis}] ...")
     result: float = (float(int(millis) / 1000.0)
                      + float(int(seconds))
                      + float(int(minutes) * 60.0)

@@ -81,3 +81,10 @@ It is advisable to put the variable values in a .env file in the same directory 
 Start the container with the following:
 
 `docker-compose up -d`
+
+## Change history
+
+DATE|DESCRIPTION
+:---|:---
+2024-11-28|Fixed parsing of duration
+2024-03-26|Initial release
