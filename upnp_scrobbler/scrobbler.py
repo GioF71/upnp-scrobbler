@@ -16,7 +16,7 @@ from typing import Optional, Sequence, Union
 from async_upnp_client.aiohttp import AiohttpNotifyServer, AiohttpRequester
 from async_upnp_client.client import UpnpDevice, UpnpService, UpnpStateVariable
 from async_upnp_client.client_factory import UpnpFactory
-from async_upnp_client.exceptions import UpnpResponseError
+from async_upnp_client.exceptions import UpnpResponseError, UpnpConnectionError
 from async_upnp_client.profiles.dlna import dlna_handle_notify_last_change
 from async_upnp_client.utils import get_local_ip
 
@@ -343,7 +343,19 @@ def on_event(
 async def subscribe(description_url: str, service_names: any) -> None:
     """Subscribe to service(s) and output updates."""
     global event_handler  # pylint: disable=global-statement
-    device = await create_device(description_url)
+    device = None
+    firstException: UpnpConnectionError = None
+    while device is None:
+        try:
+            device = await create_device(description_url)
+            if firstException:
+                print("subscribe successful.")
+        except UpnpConnectionError as ex:
+            # TODO some logging?
+            if firstException is None:
+                print(f"subscribe exception [{type(ex)}] [{ex}]")
+                firstException = ex
+            time.sleep(5)
     # start notify server/event handler
     source = (get_local_ip(device.device_url), 0)
     server = AiohttpNotifyServer(device.requester, source=source)
