@@ -320,6 +320,8 @@ def on_event(
     global items
     global the_current_song
     # special handling for DLNA LastChange state variable
+    if get_dump_upnp_data():
+        print(f"on_event: service_variables=[{service_variables}]")
     if (len(service_variables) == 1 and
             service_variables[0].name == "LastChange"):
         last_change = service_variables[0]
@@ -327,6 +329,7 @@ def on_event(
     else:
         for sv in service_variables:
             # PAUSED, PLAYING, STOPPED, TRANSITIONING, etc
+            print(f"on_event: sv.name=[{sv.name}]")
             if sv.name == "TransportState":
                 print(f"Event [{sv.name}] = [{sv.value}]")
                 if sv.value == "PLAYING":
@@ -409,24 +412,30 @@ async def subscribe(description_url: str, service_names: any) -> None:
             time.sleep(5)
     # start notify server/event handler
     source = (get_local_ip(device.device_url), 0)
+    print(f"subscribe: source=[{source}]")
     server = AiohttpNotifyServer(device.requester, source=source)
     await server.async_start_server()
     # gather all wanted services
     if "*" in service_names:
         service_names = device.services.keys()
+        print(f"subscribe: service_names:[{service_names}]")
     services = []
     for service_name in service_names:
+        print(f"subscribe: Getting service [{service_name}] from device ...")
         service = service_from_device(device, service_name)
         if not service:
             print(f"Unknown service: {service_name}")
             sys.exit(1)
+        print(f"subscribe: Got service [{service_name}] from device.")
         service.on_event = on_event
         services.append(service)
     # subscribe to services
     event_handler = server.event_handler
     for service in services:
+        print(f"subscribe: Subscribing to service [{service}] ...")
         try:
             await event_handler.async_subscribe(service)
+            print(f"subscribe: Subscribed to service [{service}].")
         except UpnpResponseError as ex:
             print(f"Unable to subscribe to {service}: {ex}")
     s = 0
