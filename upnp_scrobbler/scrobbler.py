@@ -249,6 +249,9 @@ def execute_scrobble(current_song: CurrentSong) -> bool:
               f"from [{current_song.album}] "
               f"by [{current_song.artist}]")
         last_fm_scrobble(current_song=current_song)
+        print(f"Scrobble success for [{current_song.title}] "
+              f"from [{current_song.album}] "
+              f"by [{current_song.artist}]")
         return True
     else:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
