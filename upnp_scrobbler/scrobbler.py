@@ -361,28 +361,19 @@ def on_event(
                 if get_dump_upnp_data():
                     # Print the entire mess
                     print(json.dumps(items, indent=4))
-                if the_current_song and metadata:
-                    # song changed -> scrobble!
-                    maybe_new: CurrentSong = metadata_to_new_current_song(items)
-                    song_changed: bool = not same_song(maybe_new, the_current_song)
-                    print(f"Event [{sv.name}] Song changed = [{song_changed}]")
-                    if song_changed:
-                        print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
-                              f"was [{the_current_song.title}] "
-                              f"now [{maybe_new.title}]")
-                        maybe_scrobble(the_current_song)
+                if metadata:
+                    if the_current_song:
+                        # song changed -> scrobble!
+                        maybe_new: CurrentSong = metadata_to_new_current_song(items)
+                        song_changed: bool = not same_song(maybe_new, the_current_song)
+                        print(f"Event [{sv.name}] Song changed = [{song_changed}]")
+                        if song_changed:
+                            print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
+                                  f"was [{the_current_song.title}] "
+                                  f"now [{maybe_new.title}]")
+                            maybe_scrobble(the_current_song)
                 # start creating a new CurrentSong instance
-                current_song: CurrentSong = CurrentSong()
-                current_song.title = items[key_title] if key_title in items else None
-                current_song.subtitle = items[key_subtitle] if key_subtitle in items else None
-                current_song.album = items[key_album] if key_album in items else None
-                current_song.artist = items[key_artist] if key_artist in items else None
-                duration_str: str = (items[key_duration[0]][key_duration[1]]
-                                     if key_duration[0] in items and key_duration[1] in items[key_duration[0]]
-                                     else None)
-                # patch: reset duration_str
-                # duration_str = None
-                if duration_str: current_song.duration = duration_str_to_sec(duration_str)
+                current_song: CurrentSong = metadata_to_new_current_song(items)
                 if (metadata and (not the_current_song or not same_song(current_song, the_current_song))):
                     print(f"[{sv.name}] => Setting current_song with "
                           f"[{current_song.title}] from [{current_song.album}] "
@@ -394,8 +385,6 @@ def on_event(
                           f"[{current_song.title}] from [{current_song.album}] "
                           f"by [{get_first_artist(current_song.artist)}]")
                     if update_now_playing: last_fm_update_now_playing(current_song)
-                # else:
-                #     print(f"Sticking with the same current_song [{sv.name}]")
 
 
 async def subscribe(description_url: str, service_names: any) -> None:
