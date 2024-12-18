@@ -56,11 +56,6 @@ async def create_device(description_url: str) -> UpnpDevice:
     return await factory.async_create_device(description_url)
 
 
-# def get_timestamp() -> Union[str, float]:
-#     """Timestamp depending on configuration."""
-#     return time.time()
-
-
 def service_from_device(
         device: UpnpDevice,
         service_name: str) -> Optional[UpnpService]:
@@ -255,6 +250,13 @@ def on_transport_state(event_value: str):
             g_current_song = None
 
 
+def service_variables_by_name(service_variables: Sequence[UpnpStateVariable]) -> dict[str, UpnpStateVariable]:
+    result: dict[str, UpnpStateVariable] = dict()
+    for sv in service_variables:
+        result[sv.name] = sv.value
+    return result
+
+
 def on_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
@@ -271,12 +273,23 @@ def on_event(
         last_change = service_variables[0]
         dlna_handle_notify_last_change(last_change)
     else:
+        sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+        # must have transport state
+        if EventName.TRANSPORT_STATE.value in sv_dict:
+            on_transport_state(sv_dict[EventName.TRANSPORT_STATE.value])
+        # get current track uri
+        track_uri: str = (sv_dict[EventName.CURRENT_TRACK_URI.value]
+                          if EventName.CURRENT_TRACK_URI.value in sv_dict else None)
+        print(f"Track URI = [{track_uri}]")
+        has_current_track_meta_data: bool = EventName.CURRENT_TRACK_META_DATA.value in sv_dict
+        has_av_transport_uri_meta_data: bool = EventName.AV_TRANSPORT_URI_META_DATA.value in sv_dict
+        print(f"has_current_track_meta_data=[{has_current_track_meta_data}], "
+              f"has_av_transport_uri_meta_data=[{has_av_transport_uri_meta_data}]")
         for sv in service_variables:
-            # print(f"on_event: sv.name=[{sv.name}]")
-            if sv.name == EventName.TRANSPORT_STATE.value:
-                on_transport_state(sv.value)
-            elif (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
+            if (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
                 on_metadata(sv.name, sv.value)
+            elif (sv.name == "CurrentTrackURI"):
+                print(f"Track URI = [{sv.value}]")
 
 
 async def subscribe(description_url: str, service_names: any) -> None:
