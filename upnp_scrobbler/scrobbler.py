@@ -12,7 +12,8 @@ import datetime
 import pylast
 import socket
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
+# from typing import Union
 
 from async_upnp_client.aiohttp import AiohttpNotifyServer, AiohttpRequester
 from async_upnp_client.client import UpnpDevice, UpnpService, UpnpStateVariable, UpnpRequester
@@ -20,6 +21,13 @@ from async_upnp_client.client_factory import UpnpFactory
 from async_upnp_client.exceptions import UpnpResponseError, UpnpConnectionError
 from async_upnp_client.profiles.dlna import dlna_handle_notify_last_change
 from async_upnp_client.utils import get_local_ip
+
+from song import Song, copy_song, same_song
+from player_state import PlayerState, get_player_state
+from util import duration_str_to_sec
+from event_name import EventName
+
+import config
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
@@ -29,169 +37,14 @@ key_duration: tuple[str, str] = ["res", "@duration"]
 
 item_path: list[str] = ["DIDL-Lite", "item"]
 
-DEFAULT_DURATION_THRESHOLD: int = 240
-DEFAULT_DUMP_UPNP_DATA: bool = False
-DEFAULT_ENABLE_NOW_PLAYING: bool = True
+g_current_song: Song = None
+last_scrobbled: Song = None
 
+g_items: dict = {}
 
-def get_bool_config(env_key: str, default_value: bool) -> bool:
-    cfg: str = os.getenv(env_key)
-    if not cfg: return default_value
-    return cfg.upper() == 'Y' or cfg.upper() == 'YES'
-
-
-def get_enable_now_playing() -> bool:
-    return get_bool_config(
-        env_key="ENABLE_NOW_PLAYING",
-        default_value=DEFAULT_ENABLE_NOW_PLAYING)
-
-
-def get_dump_upnp_data() -> bool:
-    return get_bool_config(
-        env_key="DUMP_UPNP_DATA",
-        default_value=DEFAULT_DUMP_UPNP_DATA)
-
-
-def get_duration_threshold() -> int:
-    duration_cfg: str = os.getenv("DURATION_THRESHOLD")
-    if not duration_cfg: return DEFAULT_DURATION_THRESHOLD
-    return int(duration_cfg)
-
-
-def duration_str_to_sec(duration: str) -> float:
-    # print(f"duration_str_to_sec duration=[{duration}] ...")
-    by_dot: list[str] = duration.split(".")
-    len_by_dot: int = len(by_dot) if by_dot else 0
-    if len_by_dot == 0 or len_by_dot > 2:
-        if len_by_dot > 2:
-            print(f"Duration split by [.] resulting in more [{len_by_dot}] elements (more than 2).")
-        return float(0)
-    # print(f"duration_str_to_sec duration=[{duration}] -> by_dot:[{by_dot}] ...")
-    if len_by_dot == 1:
-        # so we have one string after splitting by "."
-        one_segment: str = by_dot[0]
-        # case 1, no ":" -> "millis"
-        if ":" not in one_segment:
-            millis = one_segment
-            left = ""
-        # case 2, we have ":" -> "hh:mm:ss"
-        else:
-            millis = ""
-            left = one_segment
-    else:
-        # we should be dealing with hh:mm:ss.nnn
-        left = by_dot[0]
-        millis = by_dot[1]
-    # print(f"duration_str_to_sec duration=[{duration}] -> left:[{left}] millis:[{millis}]...")
-    left_split: list[str] = left.split(":") if left else list()
-    left_split_len: int = len(left_split)
-    if left_split_len > 3:
-        print(f"Left part [{left}] splitted by "":"" in {left_split_len} elements (more than 3)")
-        return float(0)
-    # seconds is last, if available
-    milliseconds: float = float(int(millis)) if millis and len(millis) > 0 else float(0)
-    seconds_str: str = left_split[left_split_len - 1] if left_split_len > 0 else "0"
-    minutes_str: str = left_split[len(left_split) - 2] if left_split_len > 1 else "0"
-    hours_str = left_split[left_split_len - 3] if left_split_len > 2 else "0"
-    # print(f"duration_str_to_sec duration=[{duration}] -> "
-    #       f"h:[{hours_str}] "
-    #       f"m:[{minutes_str}] "
-    #       f"s:[{seconds_str}] "
-    #       f"millis:[{millis}] ...")
-    result: float = ((milliseconds / 1000.0) +
-                     float(int(seconds_str)) +
-                     float(int(minutes_str) * 60.0) +
-                     float(int(hours_str) * 3600.0))
-    print(f"duration_str_to_sec [{duration}] -> [{result}] (sec)")
-    return result
-
-
-class CurrentSong:
-
-    def __init__(self):
-        # keep track of creation time
-        self._playback_start: float = time.time()
-        self._title: str = None
-        self._subtitle: str = None
-        self._artist: str = None
-        self._album: str = None
-        self._duration: float = None
-
-    @property
-    def playback_start(self) -> float:
-        return self._playback_start
-
-    @playback_start.setter
-    def playback_start(self, value: float):
-        self._playback_start: str = value
-
-    @property
-    def title(self) -> str:
-        return self._title
-
-    @title.setter
-    def title(self, value: str):
-        self._title: str = value
-
-    @property
-    def subtitle(self) -> str:
-        return self._subtitle
-
-    @subtitle.setter
-    def subtitle(self, value: str):
-        self._subtitle: str = value
-
-    @property
-    def artist(self) -> str:
-        return self._artist
-
-    @artist.setter
-    def artist(self, value: str):
-        self._artist: str = value
-
-    @property
-    def album(self) -> str:
-        return self._album
-
-    @album.setter
-    def album(self, value: str):
-        self._album: str = value
-
-    @property
-    def duration(self) -> float:
-        return self._duration
-
-    @duration.setter
-    def duration(self, value: float):
-        self._duration: str = value
-
-
-def same_song(left: CurrentSong, right: CurrentSong) -> bool:
-    return (left.album == right.album and
-            left.artist == right.artist and
-            left.duration == right.duration and
-            left.subtitle == right.subtitle and
-            left.title == right.title)
-
-
-def copy_current_song(current_song: CurrentSong) -> CurrentSong:
-    copied: CurrentSong = CurrentSong()
-    copied.album = current_song.album
-    copied.artist = current_song.artist
-    copied.duration = current_song.duration
-    copied.playback_start = current_song.playback_start
-    copied.subtitle = current_song.subtitle
-    copied.title = current_song.title
-    return copied
-
-
-the_current_song: CurrentSong = None
-last_scrobbled: CurrentSong = None
-
-items: dict = {}
-
-event_handler = None
-playing = False
+g_event_handler = None
+g_playing = False
+g_player_state: PlayerState = PlayerState.UNKNOWN
 
 
 async def create_device(description_url: str) -> UpnpDevice:
@@ -203,9 +56,9 @@ async def create_device(description_url: str) -> UpnpDevice:
     return await factory.async_create_device(description_url)
 
 
-def get_timestamp() -> Union[str, float]:
-    """Timestamp depending on configuration."""
-    return time.time()
+# def get_timestamp() -> Union[str, float]:
+#     """Timestamp depending on configuration."""
+#     return time.time()
 
 
 def service_from_device(
@@ -220,41 +73,46 @@ def service_from_device(
     return None
 
 
-# we accept new scrobbles for the same song after (seconds) ...
-minimum_delta: float = 10.0
-
-
-def maybe_scrobble(current_song: CurrentSong):
+def maybe_scrobble(current_song: Song):
     global last_scrobbled
-    global the_current_song
     if last_scrobbled and same_song(current_song, last_scrobbled):
         # too close in time?
         delta: float = current_song.playback_start - last_scrobbled.playback_start
-        if delta < minimum_delta:
+        if delta < config.get_minimum_delta():
             print("Requesting a new scrobble for the same song again too early, not scrobbling")
             return
     if execute_scrobble(current_song):
-        last_scrobbled = copy_current_song(current_song)
-    # the_current_song = None
+        last_scrobbled = copy_song(current_song)
 
 
-def execute_scrobble(current_song: CurrentSong) -> bool:
+def execute_scrobble(current_song: Song) -> bool:
     now: float = time.time()
     # if we have no duration, we assume 4 m, so we scrobble at 2 minutes
     song_duration: float = current_song.duration if current_song.duration else float(120)
     duration_estimated: bool = current_song.duration is None
     elapsed: float = now - current_song.playback_start
-    if elapsed >= get_duration_threshold() or elapsed >= (song_duration / 2.0):
+    over_threshold: bool = elapsed >= config.get_duration_threshold()
+    over_half: bool = elapsed >= (song_duration / 2.0)
+    if over_threshold or over_half:
         print(f"execute_scrobble we can scrobble [{current_song.title}] "
               f"from [{current_song.album}] "
-              f"by [{current_song.artist}]")
+              f"by [{current_song.artist}] "
+              f"elapsed [{elapsed:.2f}] "
+              f"duration [{song_duration:.2f}] "
+              f"threshold [{config.get_duration_threshold()}] "
+              f"over_threshold [{over_threshold}] "
+              f"over_half [{over_half}]")
         last_fm_scrobble(current_song=current_song)
+        print(f"Scrobble success for [{current_song.title}] "
+              f"from [{current_song.album}] "
+              f"by [{current_song.artist}]")
         return True
     else:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
               f"from [{current_song.album}] "
               f"by [{current_song.artist}], "
-              f"elapsed: [{elapsed}] duration: [{song_duration}] "
+              f"elapsed: [{elapsed:.2f}] "
+              f"duration: [{song_duration:.2f}] "
               f"estimated [{duration_estimated}]")
         return False
 
@@ -276,7 +134,11 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
     return network
 
 
-def last_fm_update_now_playing(current_song: CurrentSong):
+def do_update_now_playing(current_song: Song):
+    last_fm_now_playing(current_song)
+
+
+def last_fm_now_playing(current_song: Song):
     network: pylast.LastFMNetwork = create_last_fm_network()
     network.update_now_playing(
         artist=get_first_artist(current_song.artist),
@@ -285,7 +147,7 @@ def last_fm_update_now_playing(current_song: CurrentSong):
         duration=int(current_song.duration) if current_song.duration else None)
 
 
-def last_fm_scrobble(current_song: CurrentSong):
+def last_fm_scrobble(current_song: Song):
     network: pylast.LastFMNetwork = create_last_fm_network()
     unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
     network.scrobble(
@@ -300,8 +162,8 @@ def get_first_artist(artist: str) -> str:
     return artist_list[0] if artist_list and len(artist_list) > 0 else None
 
 
-def metadata_to_new_current_song(items: dict[str, any]) -> CurrentSong:
-    current_song: CurrentSong = CurrentSong()
+def metadata_to_new_current_song(items: dict[str, any]) -> Song:
+    current_song: Song = Song()
     current_song.title = items[key_title] if key_title in items else None
     current_song.subtitle = items[key_subtitle] if key_subtitle in items else None
     current_song.album = items[key_album] if key_album in items else None
@@ -313,15 +175,96 @@ def metadata_to_new_current_song(items: dict[str, any]) -> CurrentSong:
     return current_song
 
 
+def on_playing(song: Song):
+    update_now_playing: bool = config.get_enable_now_playing()
+    if update_now_playing and song:
+        print(f"Updating [now playing] [{'yes' if update_now_playing else 'no'}] for new song "
+              f"[{song.title}] from [{song.album}] "
+              f"by [{get_first_artist(song.artist)}]")
+        do_update_now_playing(song)
+
+
+def get_items(event_name: str, event_value: any) -> any:
+    parsed: dict[str, any]
+    try:
+        parsed = xmltodict.parse(event_value)
+    except Exception as ex:
+        print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
+        return
+    didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
+    p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
+    if p_items is None:
+        msg: str = f"Event [{event_name}] -> no data."
+        print(msg)
+        raise Exception(msg)
+    if config.get_dump_upnp_data():
+        # Print the entire mess
+        print(json.dumps(p_items, indent=4))
+    return p_items
+
+
+def on_metadata(event_name: str, event_value: str):
+    global g_playing
+    global g_player_state
+    global g_items
+    global g_current_song
+    # Grab and (maybe) print the metadata
+    g_items = get_items(event_name, event_value)
+    # create a new Song instance from metadata
+    current_song: Song = metadata_to_new_current_song(g_items)
+    if g_current_song:
+        # we want to scrobble if the song has changed
+        song_changed: bool = not same_song(current_song, g_current_song)
+        print(f"Event [{event_name}] Song changed = [{song_changed}]")
+        if song_changed:
+            print(f"Event [{event_name}] -> We want to scrobble because the song changed: "
+                  f"was [{g_current_song.title}] "
+                  f"now [{current_song.title}]")
+            maybe_scrobble(g_current_song)
+            # we can reset g_current_song!
+            g_current_song = None
+    if (not g_current_song or not same_song(current_song, g_current_song)):
+        print(f"[{event_name}] => Setting current_song with "
+              f"[{current_song.title}] from [{current_song.album}] "
+              f"by [{current_song.artist}]")
+        g_current_song = current_song
+        # update now playing anyway (even if there is no duration)
+        if g_playing:
+            on_playing(current_song)
+
+
+def on_transport_state(event_value: str):
+    global g_playing
+    global g_player_state
+    global g_current_song
+    print(f"Event [{EventName.TRANSPORT_STATE.value}] = [{event_value}]")
+    new_player_state: PlayerState = get_player_state(event_value)
+    if event_value == PlayerState.PLAYING.value:
+        g_playing = True
+        g_player_state = new_player_state
+        if g_current_song:
+            on_playing(g_current_song)
+    else:
+        g_playing = False
+        was_playing: bool = (g_player_state and g_player_state == PlayerState.PLAYING)
+        g_player_state = new_player_state
+        if event_value == PlayerState.STOPPED.value and was_playing and g_current_song:
+            print(f"Scrobbling because: [{event_value}]")
+            maybe_scrobble(g_current_song)
+            # we can reset g_current_song!
+            g_current_song = None
+
+
 def on_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP event."""
-    global playing
-    global items
-    global the_current_song
+    global g_playing
+    global g_player_state
+    global g_items
+    global g_current_song
     # special handling for DLNA LastChange state variable
-    if get_dump_upnp_data():
+    if config.get_dump_upnp_data():
         print(f"on_event: service_variables=[{service_variables}]")
     if (len(service_variables) == 1 and
             service_variables[0].name == "LastChange"):
@@ -329,75 +272,16 @@ def on_event(
         dlna_handle_notify_last_change(last_change)
     else:
         for sv in service_variables:
-            # PAUSED, PLAYING, STOPPED, TRANSITIONING, etc
-            print(f"on_event: sv.name=[{sv.name}]")
-            if sv.name == "TransportState":
-                print(f"Event [{sv.name}] = [{sv.value}]")
-                if sv.value == "PLAYING":
-                    playing = True
-                else:
-                    playing = False
-                    if sv.value == "STOPPED" and the_current_song:
-                        print(f"Scrobbling because: [{sv.value}]")
-                        maybe_scrobble(the_current_song)
-            # Grab and print the metadata
-            if (sv.name in ["CurrentTrackMetaData", "AVTransportURIMetaData"]):
-                metadata: bool = sv.name == "CurrentTrackMetaData"
-                # Convert XML to beautiful JSON
-                parsed: dict[str, any]
-                try:
-                    parsed = xmltodict.parse(sv.value)
-                except Exception as ex:
-                    print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
-                    return
-                didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
-                items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
-                if items is None:
-                    print(f"Event [{sv.name}] -> no data.")
-                    return
-                if get_dump_upnp_data():
-                    # Print the entire mess
-                    print(json.dumps(items, indent=4))
-                if the_current_song and metadata:
-                    # song changed -> scrobble!
-                    maybe_new: CurrentSong = metadata_to_new_current_song(items)
-                    song_changed: bool = not same_song(maybe_new, the_current_song)
-                    print(f"Event [{sv.name}] Song changed = [{song_changed}]")
-                    if song_changed:
-                        print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
-                              f"was [{the_current_song.title}] "
-                              f"now [{maybe_new.title}]")
-                        maybe_scrobble(the_current_song)
-                # start creating a new CurrentSong instance
-                current_song: CurrentSong = CurrentSong()
-                current_song.title = items[key_title] if key_title in items else None
-                current_song.subtitle = items[key_subtitle] if key_subtitle in items else None
-                current_song.album = items[key_album] if key_album in items else None
-                current_song.artist = items[key_artist] if key_artist in items else None
-                duration_str: str = (items[key_duration[0]][key_duration[1]]
-                                     if key_duration[0] in items and key_duration[1] in items[key_duration[0]]
-                                     else None)
-                # patch: reset duration_str
-                # duration_str = None
-                if duration_str: current_song.duration = duration_str_to_sec(duration_str)
-                if (metadata and (not the_current_song or not same_song(current_song, the_current_song))):
-                    print(f"[{sv.name}] => Setting current_song with "
-                          f"[{current_song.title}] from [{current_song.album}] "
-                          f"by [{current_song.artist}]")
-                    the_current_song = current_song
-                    # update now playing anyway (even if there is no duration)
-                    update_now_playing: bool = get_enable_now_playing()
-                    print(f"Updating [now playing] [{'yes' if update_now_playing else 'no'}] for new song "
-                          f"[{current_song.title}] from [{current_song.album}] "
-                          f"by [{get_first_artist(current_song.artist)}]")
-                    if update_now_playing: last_fm_update_now_playing(current_song)
-                # else:
-                #     print(f"Sticking with the same current_song [{sv.name}]")
+            # print(f"on_event: sv.name=[{sv.name}]")
+            if sv.name == EventName.TRANSPORT_STATE.value:
+                on_transport_state(sv.value)
+            elif (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
+                on_metadata(sv.name, sv.value)
 
 
 async def subscribe(description_url: str, service_names: any) -> None:
     """Subscribe to service(s) and output updates."""
-    global event_handler  # pylint: disable=global-statement
+    global g_event_handler  # pylint: disable=global-statement
     device = None
     firstException: UpnpConnectionError = None
     while device is None:
@@ -431,11 +315,11 @@ async def subscribe(description_url: str, service_names: any) -> None:
         service.on_event = on_event
         services.append(service)
     # subscribe to services
-    event_handler = server.event_handler
+    g_event_handler = server.event_handler
     for service in services:
         print(f"subscribe: Subscribing to service [{service}] ...")
         try:
-            await event_handler.async_subscribe(service)
+            await g_event_handler.async_subscribe(service)
             print(f"subscribe: Subscribed to service [{service}].")
         except UpnpResponseError as ex:
             print(f"Unable to subscribe to {service}: {ex}")
@@ -445,7 +329,7 @@ async def subscribe(description_url: str, service_names: any) -> None:
         await asyncio.sleep(10)
         s = s + 1
         if s >= 12:
-            await event_handler.async_resubscribe_all()
+            await g_event_handler.async_resubscribe_all()
             s = 0
 
 
@@ -483,8 +367,8 @@ def main() -> None:
     try:
         loop.run_until_complete(async_main())
     except KeyboardInterrupt:
-        if event_handler:
-            loop.run_until_complete(event_handler.async_unsubscribe_all())
+        if g_event_handler:
+            loop.run_until_complete(g_event_handler.async_unsubscribe_all())
     finally:
         loop.close()
 
