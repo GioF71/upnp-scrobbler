@@ -37,7 +37,7 @@ key_duration: tuple[str, str] = ["res", "@duration"]
 
 item_path: list[str] = ["DIDL-Lite", "item"]
 
-the_current_song: Song = None
+g_current_song: Song = None
 last_scrobbled: Song = None
 
 g_items: dict = {}
@@ -75,7 +75,7 @@ def service_from_device(
 
 def maybe_scrobble(current_song: Song):
     global last_scrobbled
-    global the_current_song
+    global g_current_song
     if last_scrobbled and same_song(current_song, last_scrobbled):
         # too close in time?
         delta: float = current_song.playback_start - last_scrobbled.playback_start
@@ -84,7 +84,7 @@ def maybe_scrobble(current_song: Song):
             return
     if execute_scrobble(current_song):
         last_scrobbled = copy_song(current_song)
-    # the_current_song = None
+    # g_current_song = None
 
 
 def execute_scrobble(current_song: Song) -> bool:
@@ -197,6 +197,28 @@ def get_items(event_name: str, event_value: any) -> any:
     return p_items
 
 
+def on_transport_state(event_value: str):
+    global g_playing
+    global g_player_state
+    global g_current_song
+    print(f"Event [{EventName.TRANSPORT_STATE.value}] = [{event_value}]")
+    new_player_state: PlayerState = get_player_state(event_value)
+    if event_value == PlayerState.PLAYING.value:
+        g_playing = True
+        g_player_state = new_player_state
+        if g_current_song:
+            on_playing(g_current_song)
+    else:
+        g_playing = False
+        was_playing: bool = (g_player_state and g_player_state == PlayerState.PLAYING)
+        g_player_state = new_player_state
+        if event_value == PlayerState.STOPPED.value and was_playing and g_current_song:
+            print(f"Scrobbling because: [{event_value}]")
+            maybe_scrobble(g_current_song)
+            # we can reset g_current_song!
+            g_current_song = None
+
+
 def on_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
@@ -204,7 +226,7 @@ def on_event(
     global g_playing
     global g_player_state
     global g_items
-    global the_current_song
+    global g_current_song
     # special handling for DLNA LastChange state variable
     if config.get_dump_upnp_data():
         print(f"on_event: service_variables=[{service_variables}]")
@@ -214,50 +236,32 @@ def on_event(
         dlna_handle_notify_last_change(last_change)
     else:
         for sv in service_variables:
-            print(f"on_event: sv.name=[{sv.name}]")
+            # print(f"on_event: sv.name=[{sv.name}]")
             if sv.name == EventName.TRANSPORT_STATE.value:
-                print(f"Event [{sv.name}] = [{sv.value}]")
-                new_player_state: PlayerState = get_player_state(sv.value)
-                if sv.value == PlayerState.PLAYING.value:
-                    g_playing = True
-                    g_player_state = new_player_state
-                    if the_current_song:
-                        on_playing(the_current_song)
-                else:
-                    g_playing = False
-                    was_playing: bool = g_player_state == PlayerState.PLAYING
-                    g_player_state = new_player_state
-                    if sv.value == PlayerState.STOPPED.value and was_playing and the_current_song:
-                        print(f"Scrobbling because: [{sv.value}]")
-                        maybe_scrobble(the_current_song)
-                        # we can reset the_current_song!
-                        the_current_song = None
-            # elif (sv.name in ["CurrentPlayMode"]):
-            #     print(f"sv.name=[{sv.name}] sv.value=[{sv.value}]")
+                on_transport_state(sv.value)
             elif (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
-                metadata: bool = sv.name == EventName.CURRENT_TRACK_META_DATA.value
-                # Grab and print the metadata
+                # Grab and (maybe) print the metadata
                 g_items = get_items(sv.name, sv.value)
-                if metadata:
-                    if the_current_song:
-                        # song changed -> scrobble!
-                        maybe_new: Song = metadata_to_new_current_song(g_items)
-                        song_changed: bool = not same_song(maybe_new, the_current_song)
-                        print(f"Event [{sv.name}] Song changed = [{song_changed}]")
-                        if song_changed:
-                            print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
-                                  f"was [{the_current_song.title}] "
-                                  f"now [{maybe_new.title}]")
-                            maybe_scrobble(the_current_song)
-                            # we can reset the_current_song!
-                            the_current_song = None
+                # metadata: bool = sv.name == EventName.CURRENT_TRACK_META_DATA.value
+                # metadata: bool = True
                 # start creating a new Song instance
                 current_song: Song = metadata_to_new_current_song(g_items)
-                if (metadata and (not the_current_song or not same_song(current_song, the_current_song))):
+                if g_current_song:
+                    # we want to scrobble if the song has changed
+                    song_changed: bool = not same_song(current_song, g_current_song)
+                    print(f"Event [{sv.name}] Song changed = [{song_changed}]")
+                    if song_changed:
+                        print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
+                              f"was [{g_current_song.title}] "
+                              f"now [{current_song.title}]")
+                        maybe_scrobble(g_current_song)
+                        # we can reset g_current_song!
+                        g_current_song = None
+                if (not g_current_song or not same_song(current_song, g_current_song)):
                     print(f"[{sv.name}] => Setting current_song with "
                           f"[{current_song.title}] from [{current_song.album}] "
                           f"by [{current_song.artist}]")
-                    the_current_song = current_song
+                    g_current_song = current_song
                     # update now playing anyway (even if there is no duration)
                     if g_playing:
                         on_playing(current_song)
