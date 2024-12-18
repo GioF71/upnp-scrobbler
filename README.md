@@ -86,6 +86,8 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2024-12-18|Now playing is executed when appropriate only
+2024-12-18|Code refactored
 2024-12-11|Log host ip
 2024-12-10|Add debug logging, to be refined
 2024-11-29|Improved general reliability and management of duration
