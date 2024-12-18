@@ -75,7 +75,6 @@ def service_from_device(
 
 def maybe_scrobble(current_song: Song):
     global last_scrobbled
-    global g_current_song
     if last_scrobbled and same_song(current_song, last_scrobbled):
         # too close in time?
         delta: float = current_song.playback_start - last_scrobbled.playback_start
@@ -84,7 +83,6 @@ def maybe_scrobble(current_song: Song):
             return
     if execute_scrobble(current_song):
         last_scrobbled = copy_song(current_song)
-    # g_current_song = None
 
 
 def execute_scrobble(current_song: Song) -> bool:
@@ -93,10 +91,17 @@ def execute_scrobble(current_song: Song) -> bool:
     song_duration: float = current_song.duration if current_song.duration else float(120)
     duration_estimated: bool = current_song.duration is None
     elapsed: float = now - current_song.playback_start
-    if elapsed >= config.get_duration_threshold() or elapsed >= (song_duration / 2.0):
+    over_threshold: bool = elapsed >= config.get_duration_threshold()
+    over_half: bool = elapsed >= (song_duration / 2.0)
+    if over_threshold or over_half:
         print(f"execute_scrobble we can scrobble [{current_song.title}] "
               f"from [{current_song.album}] "
-              f"by [{current_song.artist}]")
+              f"by [{current_song.artist}] "
+              f"elapsed [{elapsed:.2f}] "
+              f"duration [{song_duration:.2f}] "
+              f"threshold [{config.get_duration_threshold()}] "
+              f"over_threshold [{over_threshold}] "
+              f"over_half [{over_half}]")
         last_fm_scrobble(current_song=current_song)
         print(f"Scrobble success for [{current_song.title}] "
               f"from [{current_song.album}] "
@@ -106,7 +111,8 @@ def execute_scrobble(current_song: Song) -> bool:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
               f"from [{current_song.album}] "
               f"by [{current_song.artist}], "
-              f"elapsed: [{elapsed}] duration: [{song_duration}] "
+              f"elapsed: [{elapsed:.2f}] "
+              f"duration: [{song_duration:.2f}] "
               f"estimated [{duration_estimated}]")
         return False
 
@@ -197,6 +203,36 @@ def get_items(event_name: str, event_value: any) -> any:
     return p_items
 
 
+def on_metadata(event_name: str, event_value: str):
+    global g_playing
+    global g_player_state
+    global g_items
+    global g_current_song
+    # Grab and (maybe) print the metadata
+    g_items = get_items(event_name, event_value)
+    # create a new Song instance from metadata
+    current_song: Song = metadata_to_new_current_song(g_items)
+    if g_current_song:
+        # we want to scrobble if the song has changed
+        song_changed: bool = not same_song(current_song, g_current_song)
+        print(f"Event [{event_name}] Song changed = [{song_changed}]")
+        if song_changed:
+            print(f"Event [{event_name}] -> We want to scrobble because the song changed: "
+                  f"was [{g_current_song.title}] "
+                  f"now [{current_song.title}]")
+            maybe_scrobble(g_current_song)
+            # we can reset g_current_song!
+            g_current_song = None
+    if (not g_current_song or not same_song(current_song, g_current_song)):
+        print(f"[{event_name}] => Setting current_song with "
+              f"[{current_song.title}] from [{current_song.album}] "
+              f"by [{current_song.artist}]")
+        g_current_song = current_song
+        # update now playing anyway (even if there is no duration)
+        if g_playing:
+            on_playing(current_song)
+
+
 def on_transport_state(event_value: str):
     global g_playing
     global g_player_state
@@ -240,31 +276,7 @@ def on_event(
             if sv.name == EventName.TRANSPORT_STATE.value:
                 on_transport_state(sv.value)
             elif (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
-                # Grab and (maybe) print the metadata
-                g_items = get_items(sv.name, sv.value)
-                # metadata: bool = sv.name == EventName.CURRENT_TRACK_META_DATA.value
-                # metadata: bool = True
-                # start creating a new Song instance
-                current_song: Song = metadata_to_new_current_song(g_items)
-                if g_current_song:
-                    # we want to scrobble if the song has changed
-                    song_changed: bool = not same_song(current_song, g_current_song)
-                    print(f"Event [{sv.name}] Song changed = [{song_changed}]")
-                    if song_changed:
-                        print(f"Event [{sv.name}] -> We want to scrobble because the song changed: "
-                              f"was [{g_current_song.title}] "
-                              f"now [{current_song.title}]")
-                        maybe_scrobble(g_current_song)
-                        # we can reset g_current_song!
-                        g_current_song = None
-                if (not g_current_song or not same_song(current_song, g_current_song)):
-                    print(f"[{sv.name}] => Setting current_song with "
-                          f"[{current_song.title}] from [{current_song.album}] "
-                          f"by [{current_song.artist}]")
-                    g_current_song = current_song
-                    # update now playing anyway (even if there is no duration)
-                    if g_playing:
-                        on_playing(current_song)
+                on_metadata(sv.name, sv.value)
 
 
 async def subscribe(description_url: str, service_names: any) -> None:
