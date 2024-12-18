@@ -287,7 +287,10 @@ def on_event(
               f"has_av_transport_uri_meta_data=[{has_av_transport_uri_meta_data}]")
         for sv in service_variables:
             if (sv.name in [EventName.CURRENT_TRACK_META_DATA.value, EventName.AV_TRANSPORT_URI_META_DATA.value]):
-                on_metadata(sv.name, sv.value)
+                if sv.value:
+                    on_metadata(sv.name, sv.value)
+                else:
+                    print(f"empty value for [{sv.name}]")
             elif (sv.name == "CurrentTrackURI"):
                 print(f"Track URI = [{sv.value}]")
 
