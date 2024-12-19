@@ -11,6 +11,7 @@ class Song:
         self._artist: str = None
         self._album: str = None
         self._duration: float = None
+        self._track_uri: str = None
 
     @property
     def playback_start(self) -> float:
@@ -60,13 +61,22 @@ class Song:
     def duration(self, value: float):
         self._duration: str = value
 
+    @property
+    def track_uri(self) -> str:
+        return self._track_uri
+
+    @track_uri.setter
+    def track_uri(self, value: str):
+        self._track_uri = value
+
 
 def same_song(left: Song, right: Song) -> bool:
     return (left.album == right.album and
             left.artist == right.artist and
             left.duration == right.duration and
             left.subtitle == right.subtitle and
-            left.title == right.title)
+            left.title == right.title and
+            left.track_uri == right.track_uri)
 
 
 def copy_song(song: Song) -> Song:
@@ -77,4 +87,5 @@ def copy_song(song: Song) -> Song:
     copied.playback_start = song.playback_start
     copied.subtitle = song.subtitle
     copied.title = song.title
+    copied.track_uri = song.track_uri
     return copied
