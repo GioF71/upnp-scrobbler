@@ -42,5 +42,5 @@ def duration_str_to_sec(duration: str) -> float:
                      float(int(seconds_str)) +
                      float(int(minutes_str) * 60.0) +
                      float(int(hours_str) * 3600.0))
-    print(f"duration_str_to_sec [{duration}] -> [{result}] (sec)")
+    # print(f"duration_str_to_sec [{duration}] -> [{result}] (sec)")
     return result
