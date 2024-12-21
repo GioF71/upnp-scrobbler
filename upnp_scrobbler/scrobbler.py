@@ -285,6 +285,7 @@ def on_event(
                     if g_previous_song and not same_song(g_previous_song, g_current_song):
                         print("Scrobbling because we have a new song in incoming metadata (new_metadata)")
                         maybe_scrobble(current_song=g_current_song)
+                        print("Resetting g_current_song after scrobbling because of new incoming metadata ...")
                         # we scrobbled so we reset g_current_song
                         g_current_song = None
                 else:
@@ -301,7 +302,9 @@ def on_event(
                 print(f"Song changed: [{song_changed}] "
                       f"g_previous_song: [{g_previous_song is not None}]")
                 if g_previous_song:
+                    print(f"Scrobbling previous_song while handling [{PlayerState.PLAYING.value}] ...")
                     maybe_scrobble(current_song=g_previous_song)
+                    print(f"Resetting g_current_song while handling [{PlayerState.PLAYING.value}] ...")
                     g_current_song = None
             else:
                 # we update the now playing
