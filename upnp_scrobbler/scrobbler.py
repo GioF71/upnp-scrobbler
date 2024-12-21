@@ -28,7 +28,6 @@ from util import duration_str_to_sec
 from event_name import EventName
 
 import config
-import datetime
 
 
 key_title: str = "dc:title"
@@ -76,16 +75,18 @@ def service_from_device(
     return None
 
 
-def maybe_scrobble(current_song: Song):
+def maybe_scrobble(current_song: Song) -> bool:
     global last_scrobbled
     if last_scrobbled and same_song(current_song, last_scrobbled):
         # too close in time?
         delta: float = current_song.playback_start - last_scrobbled.playback_start
         if delta < config.get_minimum_delta():
             print("Requesting a new scrobble for the same song again too early, not scrobbling")
-            return
+            return False
     if execute_scrobble(current_song):
         last_scrobbled = copy_song(current_song)
+        return True
+    return False
 
 
 def execute_scrobble(current_song: Song) -> bool:
@@ -259,11 +260,11 @@ def on_event(
         has_av_transport_uri_meta_data: bool = EventName.AV_TRANSPORT_URI_META_DATA.value in sv_dict
         # get metadata
         metadata_key: str = None
-        print(f"Metadata available: [{metadata_key is not None}]")
         if has_current_track_meta_data:
             metadata_key = EventName.CURRENT_TRACK_META_DATA.value
         elif has_av_transport_uri_meta_data:
             metadata_key = EventName.AV_TRANSPORT_URI_META_DATA.value
+        print(f"Metadata available: [{metadata_key is not None}]")
         new_metadata: Song = None
         if metadata_key:
             g_items = get_items(metadata_key, sv_dict[metadata_key])
@@ -297,7 +298,7 @@ def on_event(
             if metadata_key:
                 # song changed
                 song_changed: bool = g_previous_song is None or not same_song(new_metadata, g_previous_song)
-                print(f"song changed: [{song_changed}] "
+                print(f"Song changed: [{song_changed}] "
                       f"g_previous_song: [{g_previous_song is not None}]")
                 if g_previous_song:
                     maybe_scrobble(current_song=g_previous_song)
@@ -333,10 +334,10 @@ def on_event(
                   f"g_previous_song [{g_previous_song is not None}]")
             # we need to scrobble!
             if g_current_song:
+                print(f"Scrobbling because of the {PlayerState.STOPPED.value} state ...")
                 maybe_scrobble(current_song=g_current_song)
-            # reset g_previous_song anyway
-            g_previous_song = None
             # reset g_current_song anyway
+            print(f"Resetting g_current_song because of the {PlayerState.STOPPED.value} state ...")
             g_current_song = None
 
 
