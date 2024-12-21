@@ -6,7 +6,7 @@ A simple LAST.fm scrobbler for WiiM devices.
 
 I started taking the code published in [this post](https://forum.wiimhome.com/threads/last-fm.3144/post-44653) as the starting point.  
 It seems that I cannot get a valid link to the user profile on that board, but anyway the nickname is `cc_rider`.  
-A big thank you goes to him/her for the code he/she shared.    
+A big thank you goes to him/her for the code he/she shared.  
 I then used [pylast](https://github.com/pylast/pylast), as suggested in that thread, for the actual operations on [last.fm](https://www.last.fm/).  
 
 ## Links
@@ -86,6 +86,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2024-12-21|Scrobble when metadata changes
 2024-12-20|More granular handling of events
 2024-12-19|Algorithm reviewed, should be working now
 2024-12-18|Now playing is executed when appropriate only
