@@ -7,6 +7,7 @@ class PlayerState(Enum):
     PAUSED_PLAYBACK = "PAUSED_PLAYBACK"
     STOPPED = "STOPPED"
     TRANSITIONING = "TRANSITIONING"
+    NO_MEDIA_PRESENT = "NO_MEDIA_PRESENT"
 
 
 def get_player_state(transport_state: str) -> PlayerState:

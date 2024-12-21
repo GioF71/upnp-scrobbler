@@ -272,6 +272,11 @@ def on_event(
                     print("Updating Now Playing with song information because we have new metadata ...")
                     on_playing(from_metadata)
                     now_playing_updated = True
+                    # did the song change?
+                    if g_previous_song and not same_song(g_previous_song, g_current_song):
+                        maybe_scrobble(current_song=g_current_song)
+                        # we scrobbled so we reset g_current_song
+                        g_current_song = None
                 else:
                     print("Not updating g_current_song")
             else:
