@@ -196,7 +196,7 @@ def get_items(event_name: str, event_value: any) -> any:
         parsed = xmltodict.parse(event_value)
     except Exception as ex:
         print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
-        return
+        return None
     didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
     p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
     if p_items is None:
