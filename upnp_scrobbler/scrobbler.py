@@ -28,6 +28,7 @@ from util import duration_str_to_sec
 from event_name import EventName
 
 import config
+import datetime
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
@@ -45,6 +46,12 @@ g_items: dict = {}
 
 g_event_handler = None
 g_player_state: PlayerState = PlayerState.UNKNOWN
+
+_print = print
+
+
+def print(*args, **kw):
+    _print("[%s]" % (datetime.datetime.now()), *args, **kw)
 
 
 async def create_device(description_url: str) -> UpnpDevice:
