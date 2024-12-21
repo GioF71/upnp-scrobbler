@@ -86,6 +86,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2024-12-21|Add log before scrobbling when metadata changes
 2024-12-21|Scrobble when metadata changes
 2024-12-20|More granular handling of events
 2024-12-19|Algorithm reviewed, should be working now
