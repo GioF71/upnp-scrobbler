@@ -283,10 +283,14 @@ def on_event(
         if metadata_key:
             g_items = get_items(metadata_key, sv_dict[metadata_key])
             new_metadata = metadata_to_new_current_song(g_items, track_uri) if g_items else None
+            if new_metadata.is_empty():
+                print("Incoming new_metadata is empty!")
+                new_metadata = None
             empty_g_current_song: bool = g_current_song is None
-            metadata_is_new: bool = g_current_song is None or not same_song(g_current_song, new_metadata)
-            print(f"new_metadata is new: [{metadata_is_new}] -> [{song_to_string(new_metadata)}]")
+            metadata_is_new: bool = ((new_metadata is not None) and
+                                     (g_current_song is None or not same_song(g_current_song, new_metadata)))
             if new_metadata:
+                print(f"new_metadata is new: [{metadata_is_new}] -> [{song_to_string(new_metadata)}]")
                 if empty_g_current_song or not same_song(g_current_song, new_metadata):
                     print(f"Setting g_current_song to [{new_metadata.title}] "
                           f"by [{new_metadata.artist}] "
@@ -307,7 +311,7 @@ def on_event(
                 else:
                     print("Not updating g_current_song")
             else:
-                print("new_metadata is None")
+                print("Incoming new_metadata is None")
         if PlayerState.PLAYING.value == g_player_state.value:
             print(f"Player state is [{g_player_state.value}] previous [{previous_player_state.value}] "
                   f"metadata_key [{metadata_key}] new_metadata [{new_metadata is not None}] "

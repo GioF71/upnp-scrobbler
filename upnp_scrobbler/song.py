@@ -69,14 +69,16 @@ class Song:
     def track_uri(self, value: str):
         self._track_uri = value
 
+    def is_empty(self) -> bool:
+        return self.title is None and self.album is None and self.artist is None
+
 
 def same_song(left: Song, right: Song) -> bool:
     return (left.album == right.album and
             left.artist == right.artist and
             left.duration == right.duration and
             left.subtitle == right.subtitle and
-            left.title == right.title and
-            left.track_uri == right.track_uri)
+            left.title == right.title)
 
 
 def copy_song(song: Song) -> Song:
