@@ -97,6 +97,9 @@ def execute_scrobble(current_song: Song) -> bool:
     elapsed: float = now - current_song.playback_start
     over_threshold: bool = elapsed >= config.get_duration_threshold()
     over_half: bool = elapsed >= (song_duration / 2.0)
+    print(f"execute_scrobble duration [{song_duration}] now [{now}] "
+          f"playback_start [{current_song.playback_start}] -> elapsed [{elapsed}] "
+          f"over_threshold [{over_threshold}] over_half [{over_half}]")
     if over_threshold or over_half:
         print(f"execute_scrobble we can scrobble [{current_song.title}] "
               f"from [{current_song.album}] "
@@ -117,7 +120,9 @@ def execute_scrobble(current_song: Song) -> bool:
               f"by [{current_song.artist}], "
               f"elapsed: [{elapsed:.2f}] "
               f"duration: [{song_duration:.2f}] "
-              f"estimated [{duration_estimated}]")
+              f"estimated [{duration_estimated}] "
+              f"over_threshold [{over_threshold}] "
+              f"over_half [{over_half}]")
         return False
 
 
@@ -196,7 +201,7 @@ def get_items(event_name: str, event_value: any) -> any:
         parsed = xmltodict.parse(event_value)
     except Exception as ex:
         print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
-        return
+        return None
     didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
     p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
     if p_items is None:
@@ -221,6 +226,15 @@ def service_variables_by_name(service_variables: Sequence[UpnpStateVariable]) ->
     for sv in service_variables:
         result[sv.name] = sv.value
     return result
+
+
+def song_to_string(song: Song) -> str:
+    if song:
+        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
+                f"Duration [{song.duration}] PlaybackStart [{song.playback_start}] "
+                f"Subtitle [{song.subtitle}] TrackUri [{song.track_uri}]")
+    else:
+        return "<NO_DATA>"
 
 
 def on_event(
@@ -269,8 +283,14 @@ def on_event(
         if metadata_key:
             g_items = get_items(metadata_key, sv_dict[metadata_key])
             new_metadata = metadata_to_new_current_song(g_items, track_uri) if g_items else None
+            if new_metadata.is_empty():
+                print("Incoming new_metadata is empty!")
+                new_metadata = None
             empty_g_current_song: bool = g_current_song is None
+            metadata_is_new: bool = ((new_metadata is not None) and
+                                     (g_current_song is None or not same_song(g_current_song, new_metadata)))
             if new_metadata:
+                print(f"new_metadata is new: [{metadata_is_new}] -> [{song_to_string(new_metadata)}]")
                 if empty_g_current_song or not same_song(g_current_song, new_metadata):
                     print(f"Setting g_current_song to [{new_metadata.title}] "
                           f"by [{new_metadata.artist}] "
@@ -291,7 +311,7 @@ def on_event(
                 else:
                     print("Not updating g_current_song")
             else:
-                print("new_metadata is None")
+                print("Incoming new_metadata is None")
         if PlayerState.PLAYING.value == g_player_state.value:
             print(f"Player state is [{g_player_state.value}] previous [{previous_player_state.value}] "
                   f"metadata_key [{metadata_key}] new_metadata [{new_metadata is not None}] "

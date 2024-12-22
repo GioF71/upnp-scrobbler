@@ -86,6 +86,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2024-12-22|Add logs on maybe_scrobble in order to verify calculations
 2024-12-22|Add timestamp to log lines, more logging
 2024-12-21|Add log before scrobbling when metadata changes
 2024-12-21|Scrobble when metadata changes
