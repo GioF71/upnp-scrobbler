@@ -87,6 +87,10 @@ Start the container with the following:
 DATE|DESCRIPTION
 :---|:---
 2024-12-22|Remove handling of impossible situation
+2024-12-22|Catch empty metadata
+2024-12-22|Don't consider track_uri as a difference between tracks
+2024-12-22|Add logs on maybe_scrobble in order to verify calculations
+2024-12-22|Explicitly return None in get_items
 2024-12-22|Add logs on maybe_scrobble in order to verify calculations
 2024-12-22|Add timestamp to log lines, more logging
 2024-12-21|Add log before scrobbling when metadata changes
