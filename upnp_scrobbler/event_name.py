@@ -7,3 +7,5 @@ class EventName(Enum):
     CURRENT_TRACK_META_DATA = "CurrentTrackMetaData"
     AV_TRANSPORT_URI_META_DATA = "AVTransportURIMetaData"
     CURRENT_TRACK_URI = "CurrentTrackURI"
+    AV_TRANSPORT_URI = "AVTransportURI"
+    LAST_CHANGE = "LastChange"
