@@ -4,7 +4,6 @@
 
 import asyncio
 import json
-import sys
 import time
 import xmltodict
 import os
@@ -12,8 +11,7 @@ import datetime
 import pylast
 import socket
 
-from typing import Optional, Sequence
-# from typing import Union
+from typing import Optional, Sequence, Callable
 
 from async_upnp_client.aiohttp import AiohttpNotifyServer, AiohttpRequester
 from async_upnp_client.client import UpnpDevice, UpnpService, UpnpStateVariable, UpnpRequester
@@ -21,6 +19,7 @@ from async_upnp_client.client_factory import UpnpFactory
 from async_upnp_client.exceptions import UpnpResponseError, UpnpConnectionError
 from async_upnp_client.profiles.dlna import dlna_handle_notify_last_change
 from async_upnp_client.utils import get_local_ip
+from async_upnp_client.const import DeviceInfo
 
 from song import Song, copy_song, same_song
 from player_state import PlayerState, get_player_state
@@ -75,6 +74,27 @@ def service_from_device(
     return None
 
 
+def song_to_short_string(song: Song) -> str:
+    if song:
+        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
+                f"TrackUri set [{song.track_uri is not None}] "
+                f"AvTransportUri set [{song.av_transport_uri is not None}] ")
+    else:
+        return "<NO_DATA>"
+
+
+def song_to_string(song: Song) -> str:
+    if song:
+        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
+                f"Duration [{song.duration}] "
+                f"PlaybackStart [{song.playback_start}] "
+                f"Subtitle [{song.subtitle}] "
+                f"TrackUri [{song.track_uri}] "
+                f"AvTransportUri [{song.av_transport_uri}]")
+    else:
+        return "<NO_DATA>"
+
+
 def maybe_scrobble(current_song: Song) -> bool:
     global g_last_scrobbled
     if g_last_scrobbled and same_song(current_song, g_last_scrobbled):
@@ -101,18 +121,14 @@ def execute_scrobble(current_song: Song) -> bool:
           f"playback_start [{current_song.playback_start}] -> elapsed [{elapsed}] "
           f"over_threshold [{over_threshold}] over_half [{over_half}]")
     if over_threshold or over_half:
-        print(f"execute_scrobble we can scrobble [{current_song.title}] "
-              f"from [{current_song.album}] "
-              f"by [{current_song.artist}] "
+        print(f"execute_scrobble we can scrobble [{song_to_short_string(current_song)}] "
               f"elapsed [{elapsed:.2f}] "
               f"duration [{song_duration:.2f}] "
               f"threshold [{config.get_duration_threshold()}] "
               f"over_threshold [{over_threshold}] "
               f"over_half [{over_half}]")
         last_fm_scrobble(current_song=current_song)
-        print(f"Scrobble success for [{current_song.title}] "
-              f"from [{current_song.album}] "
-              f"by [{current_song.artist}]")
+        print(f"Scrobble success for [{song_to_short_string(current_song)}]")
         return True
     else:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
@@ -200,7 +216,7 @@ def get_items(event_name: str, event_value: any) -> any:
     try:
         parsed = xmltodict.parse(event_value)
     except Exception as ex:
-        print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
+        print(f"on_avtransport_event parse failed due to [{type(ex)}] [{ex}]")
         return None
     didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
     p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
@@ -228,15 +244,6 @@ def service_variables_by_name(service_variables: Sequence[UpnpStateVariable]) ->
     return result
 
 
-def song_to_string(song: Song) -> str:
-    if song:
-        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
-                f"Duration [{song.duration}] PlaybackStart [{song.playback_start}] "
-                f"Subtitle [{song.subtitle}] TrackUri [{song.track_uri}]")
-    else:
-        return "<NO_DATA>"
-
-
 def get_new_metadata(sv_dict: dict[str, any]) -> Song:
     global g_current_song
     has_current_track_meta_data: bool = EventName.CURRENT_TRACK_META_DATA.value in sv_dict
@@ -262,7 +269,52 @@ def display_player_state(state: PlayerState) -> str:
     return state.value if state else ''
 
 
-def on_valid_event(
+class Subscription:
+
+    def __init__(
+            self,
+            service_name: str,
+            handler: Callable[[UpnpService, Sequence[UpnpStateVariable]], None],
+            enabled: bool = False):
+        self.__service_name: str = service_name
+        self.__handler: Callable[[UpnpService, Sequence[UpnpStateVariable]], None] = handler
+        self.__enabled: bool = enabled
+
+    @property
+    def enabled(self) -> bool:
+        return self.__enabled
+
+    @property
+    def service_name(self) -> str:
+        return self.__service_name
+
+    @property
+    def handler(self) -> Callable[[UpnpService, Sequence[UpnpStateVariable]], None]:
+        return self.__handler
+
+
+def on_valid_rendering_control_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_valid_rendering_control_event: Keys in event [{sv_dict.keys()}]")
+
+
+def on_valid_qplay_control_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_valid_qplay_control_event: Keys in event [{sv_dict.keys()}]")
+
+
+def on_valid_connection_manager_control_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_valid_connection_manager_control_event: Keys in event [{sv_dict.keys()}]")
+
+
+def on_valid_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     global g_player_state
@@ -271,6 +323,7 @@ def on_valid_event(
     global g_previous_song
     global g_last_scrobbled
     sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
     # must have transport state
     previous_player_state: PlayerState = g_player_state
     current_player_state: PlayerState = get_player_state_from_service_variables(sv_dict)
@@ -286,77 +339,156 @@ def on_valid_event(
                       else None)
     if track_uri:
         print(f"Track URI = [{track_uri}]")
+    av_transport_uri: str = (sv_dict[EventName.AV_TRANSPORT_URI.value]
+                             if EventName.AV_TRANSPORT_URI.value in sv_dict
+                             else None)
+    if av_transport_uri:
+        print(f"AV Transport URI = [{av_transport_uri}]")
     # get metadata
     incoming_metadata: Song = get_new_metadata(sv_dict)
+    metadata_is_new: bool = False
     todo_update_now_playing: bool = False
     todo_scrobble: bool = False
     song_to_be_scrobbled: Song = None
     if incoming_metadata:
         if track_uri:
             incoming_metadata.track_uri = track_uri
+        if av_transport_uri:
+            incoming_metadata.av_transport_uri = av_transport_uri
         empty_g_current_song: bool = g_current_song is None
-        metadata_is_new: bool = ((incoming_metadata is not None) and
-                                 (g_current_song is None or not same_song(g_current_song, incoming_metadata)))
-        print(f"incoming_metadata is new: [{metadata_is_new}] -> [{song_to_string(incoming_metadata)}]")
+        metadata_is_new = ((incoming_metadata is not None) and
+                           (g_current_song is None or not same_song(g_current_song, incoming_metadata)))
+        print(f"incoming_metadata: "
+              f"empty g_current_song: [{empty_g_current_song}] "
+              f"metadata_is_new: [{metadata_is_new}] -> "
+              f"[{song_to_string(incoming_metadata)}]")
         if metadata_is_new:
             print(f"Arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}] ...")
             todo_update_now_playing = True
+            # consider arming scrobbling
+            if not empty_g_current_song:
+                # we can scrobble the g_current_song
+                print(f"Arming Scrobble because g_current_song not is empty [{song_to_string(g_current_song)}] ...")
+                todo_scrobble = True
+                song_to_be_scrobbled = copy_song(g_current_song)
+            else:
+                print("NOT arming scrobble because g_current_song is empty")
+        else:
+            print(f"Not arming Now Playing because metadata_is_new is [{metadata_is_new}]")
+        # store g_current_song if not the same ...
         if empty_g_current_song or not same_song(g_current_song, incoming_metadata):
-            print(f"Setting g_current_song to [{incoming_metadata.title}] "
-                  f"by [{incoming_metadata.artist}] "
-                  f"from [{incoming_metadata.album}] ...")
+            print(f"Setting g_previous_song to [{song_to_short_string(incoming_metadata)}] ...")
+            previous_song: Song = copy_song(g_current_song) if g_current_song else None
             g_current_song = copy_song(incoming_metadata)
-            # did the song change?
-            if (g_previous_song is not None) and (not same_song(g_previous_song, g_current_song)):
-                print("We might need to scrobble because we have a new song in incoming metadata (incoming_metadata)")
-                # unless it has been already scrobbled
-                if not g_last_scrobbled or not same_song(g_last_scrobbled, g_current_song):
-                    todo_scrobble = True
-                    song_to_be_scrobbled = copy_song(g_current_song)
-                else:
-                    print("Scrobble aborted, would have scrobbled the same song.")
+            if previous_song:
+                print(f"Setting g_previous_song to [{song_to_short_string(previous_song)}] ...")
+                # update g_previous_song and g_current_song
+                g_previous_song = copy_song(previous_song)
     else:
         print("Incoming incoming_metadata is None")
     # examing states
     if PlayerState.PLAYING.value == g_player_state.value:
-        if not todo_scrobble:
-            if incoming_metadata:
-                if g_previous_song:
-                    print(f"Arming scrobble of previous_song [{song_to_string(g_previous_song)}] "
-                          f"while handling [{PlayerState.PLAYING.value}] ...")
-                    todo_scrobble = True
-                    song_to_be_scrobbled = copy_song(g_previous_song)
+        if (not todo_scrobble) and (metadata_is_new and incoming_metadata and g_previous_song):
+            print(f"Arming scrobble of previous_song [{song_to_string(g_previous_song)}] "
+                  f"while handling [{PlayerState.PLAYING.value}] ...")
+            todo_scrobble = True
+            song_to_be_scrobbled = copy_song(g_previous_song)
     elif PlayerState.STOPPED.value == g_player_state.value:
-        if not todo_scrobble:
-            if g_current_song:
-                print(f"Arming scrobble of current song [{song_to_string(g_current_song)}] "
-                      f"because of the {PlayerState.STOPPED.value} state ...")
-                todo_scrobble = True
-                song_to_be_scrobbled = copy_song(g_current_song)
-    # Execute actions
+        if not todo_scrobble and g_current_song is not None:
+            print(f"Arming scrobble of current song [{song_to_string(g_current_song)}] "
+                  f"because of the {PlayerState.STOPPED.value} state ...")
+            todo_scrobble = True
+            song_to_be_scrobbled = copy_song(g_current_song)
+    # Execute armed actions
     if todo_update_now_playing:
         on_playing(incoming_metadata)
     if todo_scrobble:
         maybe_scrobble(current_song=song_to_be_scrobbled)
-        g_current_song = None
 
 
-def on_event(
+def on_rendering_control_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
-    """Handle a UPnP event."""
-    # special handling for DLNA LastChange state variable
+    """Handle a UPnP RenderingControl event."""
+    print(f"on_rendering_control_event [{service.service_type}]")
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_rendering_control_event: Keys in event [{sv_dict.keys()}]")
     if config.get_dump_upnp_data():
-        print(f"on_event: service_variables=[{service_variables}]")
+        print(f"on_rendering_control_event: service_variables=[{service_variables}]")
     if (len(service_variables) == 1 and
-            service_variables[0].name == "LastChange"):
+            service_variables[0].name == EventName.LAST_CHANGE.value):
         last_change = service_variables[0]
         dlna_handle_notify_last_change(last_change)
-    else:
-        on_valid_event(service, service_variables)
+    on_valid_rendering_control_event(service, service_variables)
 
 
-async def subscribe(description_url: str, service_names: any) -> None:
+def on_qplay_control_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    """Handle a UPnP QPlay event."""
+    print(f"on_qplay_control_event [{service.service_type}]")
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_qplay_control_event: Keys in event [{sv_dict.keys()}]")
+    if config.get_dump_upnp_data():
+        print(f"on_qplay_control_event: service_variables=[{service_variables}]")
+    if (len(service_variables) == 1 and
+            service_variables[0].name == EventName.LAST_CHANGE.value):
+        last_change = service_variables[0]
+        dlna_handle_notify_last_change(last_change)
+    on_valid_qplay_control_event(service, service_variables)
+
+
+def on_connection_manager_control_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    """Handle a UPnP QPlay event."""
+    print(f"on_connection_manager_control_event [{service.service_type}]")
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    print(f"on_connection_manager_control_event: Keys in event [{sv_dict.keys()}]")
+    if config.get_dump_upnp_data():
+        print(f"on_connection_manager_control_event: service_variables=[{service_variables}]")
+    if (len(service_variables) == 1 and
+            service_variables[0].name == EventName.LAST_CHANGE.value):
+        last_change = service_variables[0]
+        dlna_handle_notify_last_change(last_change)
+    on_valid_connection_manager_control_event(service, service_variables)
+
+
+def on_avtransport_event(
+        service: UpnpService,
+        service_variables: Sequence[UpnpStateVariable]) -> None:
+    """Handle a UPnP AVTransport event."""
+    # special handling for DLNA LastChange state variable
+    print(f"on_avtransport_event [{service.service_type}]")
+    sv_dict: dict[str, any] = service_variables_by_name(service_variables)
+    if config.get_dump_event_keys():
+        print(f"on_avtransport_event Keys in event [{sv_dict.keys()}]")
+    if config.get_dump_event_key_values():
+        event_key: str
+        for event_key in sv_dict.keys():
+            event_value: any = sv_dict[event_key]
+            if not isinstance(event_value, str):
+                # convert to json
+                event_value_dict: dict = xmltodict.parse(event_value)
+                event_value = 
+            print(f"Event Key [{event_key}] -> [{sv_dict[event_key]}]")
+    if config.get_dump_upnp_data():
+        print(f"on_avtransport_event service_variables [{service_variables}]")
+    if (len(service_variables) == 1 and
+            service_variables[0].name == EventName.LAST_CHANGE.value):
+        last_change = service_variables[0]
+        dlna_handle_notify_last_change(last_change)
+    on_valid_avtransport_event(service, service_variables)
+
+
+subscription_list: list[Subscription] = [
+    Subscription("AVTransport", on_avtransport_event, True),
+    Subscription("RenderingControl", on_rendering_control_event),
+    Subscription("QPlay", on_qplay_control_event),
+    Subscription("ConnectionManager", on_connection_manager_control_event)]
+
+
+async def subscribe(description_url: str, subscription_list: list[Subscription]) -> None:
     """Subscribe to service(s) and output updates."""
     global g_event_handler  # pylint: disable=global-statement
     device = None
@@ -373,23 +505,36 @@ async def subscribe(description_url: str, service_names: any) -> None:
                 firstException = ex
             time.sleep(5)
     # start notify server/event handler
+    print(f"Device url [{device.device_url}]")
+    print(f"Device type [{device.device_type}]")
+    device_info: DeviceInfo = device.device_info
+    print(f"Device info [{device.device_info}]")
+    print(f"Device Type: {device_info.device_type}")
+    print(f"Device Friendly name: {device_info.friendly_name}")
+    print(f"Device Model Name: {device_info.model_name}")
+    print(f"Device Model Description: {device_info.model_description}")
+    print(f"Available services for device: [{device.services.keys()}]")
     source = (get_local_ip(device.device_url), 0)
     print(f"subscribe: source=[{source}]")
     server = AiohttpNotifyServer(device.requester, source=source)
     await server.async_start_server()
     # gather all wanted services
-    if "*" in service_names:
-        service_names = device.services.keys()
-        print(f"subscribe: service_names:[{service_names}]")
     services = []
-    for service_name in service_names:
-        print(f"subscribe: Getting service [{service_name}] from device ...")
-        service = service_from_device(device, service_name)
+    # for service_name in service_names:
+    subscription: Subscription
+    for subscription in subscription_list:
+        if not subscription.enabled:
+            print(f"Skipping disabled subscription [{subscription.service_name}]")
+            continue
+        print(f"Processing enabled subscription [{subscription.service_name}]")
+        print(f"subscribe: Getting service [{subscription.service_name}] from device ...")
+        service = service_from_device(device, subscription.service_name)
         if not service:
-            print(f"Unknown service: {service_name}")
-            sys.exit(1)
-        print(f"subscribe: Got service [{service_name}] from device.")
-        service.on_event = on_event
+            print(f"Unknown service: {subscription.service_name}, this might be fatal.")
+            # sys.exit(1)
+            continue
+        print(f"subscribe: Got service [{subscription.service_name}] from device.")
+        service.on_event = subscription.handler
         services.append(service)
     # subscribe to services
     g_event_handler = server.event_handler
@@ -416,10 +561,9 @@ async def async_main() -> None:
     device = os.getenv("DEVICE_URL")
     if not device:
         raise Exception("The variable DEVICE_URL is mandatory")
-    service = ["AVTransport"]
     await subscribe(
         description_url=device,
-        service_names=service)
+        subscription_list=subscription_list)
 
 
 def get_ip():
@@ -441,6 +585,7 @@ def main() -> None:
     print(f"Running on [{host_ip}]")
     print(f"Now Playing enabled: [{config.get_enable_now_playing()}]")
     print(f"Dump UPnP Data: [{config.get_dump_upnp_data()}]")
+    print(f"Dump UPnP Event Key/Values: [{config.get_dump_event_key_values()}]")
     """Set up async loop and run the main program."""
     loop = asyncio.get_event_loop()
     try:

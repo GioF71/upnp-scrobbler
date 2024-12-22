@@ -1,5 +1,7 @@
 DEFAULT_DURATION_THRESHOLD: int = 240
 DEFAULT_DUMP_UPNP_DATA: bool = False
+DEFAULT_DUMP_EVENT_KEYS: bool = False
+DEFAULT_DUMP_EVENT_KEY_VALUES: bool = False
 DEFAULT_ENABLE_NOW_PLAYING: bool = True
 
 # we accept new scrobbles for the same song after (seconds) ...
