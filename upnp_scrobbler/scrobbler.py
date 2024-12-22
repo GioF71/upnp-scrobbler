@@ -213,7 +213,7 @@ def get_items(event_name: str, event_value: any) -> any:
     try:
         parsed = xmltodict.parse(event_value)
     except Exception as ex:
-        print(f"on_event parse failed due to [{type(ex)}] [{ex}]")
+        print(f"on_avtransport_event parse failed due to [{type(ex)}] [{ex}]")
         return None
     didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
     p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
@@ -266,7 +266,7 @@ def display_player_state(state: PlayerState) -> str:
     return state.value if state else ''
 
 
-def on_valid_event(
+def on_valid_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     global g_player_state
@@ -349,20 +349,20 @@ def on_valid_event(
         maybe_scrobble(current_song=song_to_be_scrobbled)
 
 
-def on_event(
+def on_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP event."""
     # special handling for DLNA LastChange state variable
-    print(f"on_event [{service.service_type}]")
+    print(f"on_avtransport_event [{service.service_type}]")
     if config.get_dump_upnp_data():
-        print(f"on_event: service_variables=[{service_variables}]")
+        print(f"on_avtransport_event: service_variables=[{service_variables}]")
     if (len(service_variables) == 1 and
             service_variables[0].name == "LastChange"):
         last_change = service_variables[0]
         dlna_handle_notify_last_change(last_change)
     else:
-        on_valid_event(service, service_variables)
+        on_valid_avtransport_event(service, service_variables)
 
 
 async def subscribe(description_url: str, service_names: any) -> None:
@@ -399,7 +399,7 @@ async def subscribe(description_url: str, service_names: any) -> None:
             print(f"Unknown service: {service_name}")
             sys.exit(1)
         print(f"subscribe: Got service [{service_name}] from device.")
-        service.on_event = on_event
+        service.on_event = on_avtransport_event
         services.append(service)
     # subscribe to services
     g_event_handler = server.event_handler
