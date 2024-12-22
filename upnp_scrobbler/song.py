@@ -12,6 +12,7 @@ class Song:
         self._album: str = None
         self._duration: float = None
         self._track_uri: str = None
+        self._av_transport_uri: str = None
 
     @property
     def playback_start(self) -> float:
@@ -69,6 +70,14 @@ class Song:
     def track_uri(self, value: str):
         self._track_uri = value
 
+    @property
+    def av_transport_uri(self) -> str:
+        return self._av_transport_uri
+
+    @av_transport_uri.setter
+    def av_transport_uri(self, value: str):
+        self._av_transport_uri = value
+
     def is_empty(self) -> bool:
         return self.title is None and self.album is None and self.artist is None
 
@@ -90,4 +99,5 @@ def copy_song(song: Song) -> Song:
     copied.subtitle = song.subtitle
     copied.title = song.title
     copied.track_uri = song.track_uri
+    copied.av_transport_uri = song.av_transport_uri
     return copied

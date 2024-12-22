@@ -14,6 +14,18 @@ def get_dump_upnp_data() -> bool:
         default_value=constants.DEFAULT_DUMP_UPNP_DATA)
 
 
+def get_dump_event_keys() -> bool:
+    return get_bool_config(
+        env_key="DUMP_EVENT_KEYS",
+        default_value=constants.DEFAULT_DUMP_EVENT_KEYS)
+
+
+def get_dump_event_key_values() -> bool:
+    return get_bool_config(
+        env_key="DUMP_EVENT_KEY_VALUES",
+        default_value=constants.DEFAULT_DUMP_EVENT_KEY_VALUES)
+
+
 def get_duration_threshold() -> int:
     duration_cfg: str = os.getenv("DURATION_THRESHOLD")
     if not duration_cfg: return constants.DEFAULT_DURATION_THRESHOLD
