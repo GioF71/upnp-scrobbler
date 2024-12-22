@@ -86,6 +86,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2024-12-22|Avoid to require a g_previous_song in order to trigger a scrobble
 2024-12-22|Remove handling of impossible situation
 2024-12-22|Catch empty metadata
 2024-12-22|Don't consider track_uri as a difference between tracks
