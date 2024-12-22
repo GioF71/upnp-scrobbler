@@ -466,11 +466,6 @@ def on_avtransport_event(
     if config.get_dump_event_key_values():
         event_key: str
         for event_key in sv_dict.keys():
-            event_value: any = sv_dict[event_key]
-            if not isinstance(event_value, str):
-                # convert to json
-                event_value_dict: dict = xmltodict.parse(event_value)
-                event_value = 
             print(f"Event Key [{event_key}] -> [{sv_dict[event_key]}]")
     if config.get_dump_upnp_data():
         print(f"on_avtransport_event service_variables [{service_variables}]")
