@@ -75,6 +75,23 @@ def service_from_device(
     return None
 
 
+def song_to_short_string(song: Song) -> str:
+    if song:
+        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
+                f"TrackUri Available [{song.track_uri is not None}]")
+    else:
+        return "<NO_DATA>"
+
+
+def song_to_string(song: Song) -> str:
+    if song:
+        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
+                f"Duration [{song.duration}] PlaybackStart [{song.playback_start}] "
+                f"Subtitle [{song.subtitle}] TrackUri [{song.track_uri}]")
+    else:
+        return "<NO_DATA>"
+
+
 def maybe_scrobble(current_song: Song) -> bool:
     global g_last_scrobbled
     if g_last_scrobbled and same_song(current_song, g_last_scrobbled):
@@ -101,18 +118,14 @@ def execute_scrobble(current_song: Song) -> bool:
           f"playback_start [{current_song.playback_start}] -> elapsed [{elapsed}] "
           f"over_threshold [{over_threshold}] over_half [{over_half}]")
     if over_threshold or over_half:
-        print(f"execute_scrobble we can scrobble [{current_song.title}] "
-              f"from [{current_song.album}] "
-              f"by [{current_song.artist}] "
+        print(f"execute_scrobble we can scrobble [{song_to_short_string(current_song)}] "
               f"elapsed [{elapsed:.2f}] "
               f"duration [{song_duration:.2f}] "
               f"threshold [{config.get_duration_threshold()}] "
               f"over_threshold [{over_threshold}] "
               f"over_half [{over_half}]")
         last_fm_scrobble(current_song=current_song)
-        print(f"Scrobble success for [{current_song.title}] "
-              f"from [{current_song.album}] "
-              f"by [{current_song.artist}]")
+        print(f"Scrobble success for [{song_to_short_string(current_song)}]")
         return True
     else:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
@@ -228,15 +241,6 @@ def service_variables_by_name(service_variables: Sequence[UpnpStateVariable]) ->
     return result
 
 
-def song_to_string(song: Song) -> str:
-    if song:
-        return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
-                f"Duration [{song.duration}] PlaybackStart [{song.playback_start}] "
-                f"Subtitle [{song.subtitle}] TrackUri [{song.track_uri}]")
-    else:
-        return "<NO_DATA>"
-
-
 def get_new_metadata(sv_dict: dict[str, any]) -> Song:
     global g_current_song
     has_current_track_meta_data: bool = EventName.CURRENT_TRACK_META_DATA.value in sv_dict
@@ -297,48 +301,61 @@ def on_valid_event(
         empty_g_current_song: bool = g_current_song is None
         metadata_is_new: bool = ((incoming_metadata is not None) and
                                  (g_current_song is None or not same_song(g_current_song, incoming_metadata)))
-        print(f"incoming_metadata is new: [{metadata_is_new}] -> [{song_to_string(incoming_metadata)}]")
+        print(f"incoming_metadata: "
+              f"empty g_current_song: [{empty_g_current_song}] "
+              f"metadata_is_new: [{metadata_is_new}] -> "
+              f"[{song_to_string(incoming_metadata)}]")
         if metadata_is_new:
             print(f"Arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}] ...")
             todo_update_now_playing = True
+            # consider arming scrobbling
+            if not empty_g_current_song:
+                # we can scrobble the g_current_song
+                print(f"Arming Scrobble because g_current_song not is empty [{song_to_string(g_current_song)}] ...")
+                todo_scrobble = True
+                song_to_be_scrobbled = copy_song(g_current_song)
+            else:
+                print("NOT arming scrobble because g_current_song is empty")
+        else:
+            print(f"Not arming Now Playing because metadata_is_new is [{metadata_is_new}]")
+        # store g_current_song if not the same ...
         if empty_g_current_song or not same_song(g_current_song, incoming_metadata):
-            print(f"Setting g_current_song to [{incoming_metadata.title}] "
-                  f"by [{incoming_metadata.artist}] "
-                  f"from [{incoming_metadata.album}] ...")
+            print(f"Setting g_previous_song to [{song_to_short_string(incoming_metadata)}] ...")
+            previous_song: Song = copy_song(g_current_song) if g_current_song else None
             g_current_song = copy_song(incoming_metadata)
-            # did the song change?
-            if (g_previous_song is not None) and (not same_song(g_previous_song, g_current_song)):
-                print("We might need to scrobble because we have a new song in incoming metadata (incoming_metadata)")
-                # unless it has been already scrobbled
-                if not g_last_scrobbled or not same_song(g_last_scrobbled, g_current_song):
-                    todo_scrobble = True
-                    song_to_be_scrobbled = copy_song(g_current_song)
-                else:
-                    print("Scrobble aborted, would have scrobbled the same song.")
+            if previous_song:
+                print(f"Setting g_previous_song to [{song_to_short_string(previous_song)}] ...")
+                # update g_previous_song and g_current_song
+                g_previous_song = copy_song(previous_song)
+            # # did the song change?
+            # if (g_previous_song is not None) and (not same_song(g_previous_song, g_current_song)):
+            #     print("We might need to scrobble because we have a new song in incoming metadata (incoming_metadata)")
+            #     # unless it has been already scrobbled
+            #     if not todo_scrobble and (not g_last_scrobbled or not same_song(g_last_scrobbled, g_current_song)):
+            #         todo_scrobble = True
+            #         song_to_be_scrobbled = copy_song(g_current_song)
+            #     else:
+            #         print("Scrobble aborted, would have scrobbled the same song.")
     else:
         print("Incoming incoming_metadata is None")
     # examing states
     if PlayerState.PLAYING.value == g_player_state.value:
-        if not todo_scrobble:
-            if incoming_metadata:
-                if g_previous_song:
-                    print(f"Arming scrobble of previous_song [{song_to_string(g_previous_song)}] "
-                          f"while handling [{PlayerState.PLAYING.value}] ...")
-                    todo_scrobble = True
-                    song_to_be_scrobbled = copy_song(g_previous_song)
+        if (not todo_scrobble) and (metadata_is_new and incoming_metadata and g_previous_song):
+            print(f"Arming scrobble of previous_song [{song_to_string(g_previous_song)}] "
+                  f"while handling [{PlayerState.PLAYING.value}] ...")
+            todo_scrobble = True
+            song_to_be_scrobbled = copy_song(g_previous_song)
     elif PlayerState.STOPPED.value == g_player_state.value:
-        if not todo_scrobble:
-            if g_current_song:
-                print(f"Arming scrobble of current song [{song_to_string(g_current_song)}] "
-                      f"because of the {PlayerState.STOPPED.value} state ...")
-                todo_scrobble = True
-                song_to_be_scrobbled = copy_song(g_current_song)
-    # Execute actions
+        if not todo_scrobble and g_current_song is not None:
+            print(f"Arming scrobble of current song [{song_to_string(g_current_song)}] "
+                  f"because of the {PlayerState.STOPPED.value} state ...")
+            todo_scrobble = True
+            song_to_be_scrobbled = copy_song(g_current_song)
+    # Execute armed actions
     if todo_update_now_playing:
         on_playing(incoming_metadata)
     if todo_scrobble:
         maybe_scrobble(current_song=song_to_be_scrobbled)
-        g_current_song = None
 
 
 def on_event(
@@ -346,6 +363,7 @@ def on_event(
         service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP event."""
     # special handling for DLNA LastChange state variable
+    print(f"on_event [{service.service_type}]")
     if config.get_dump_upnp_data():
         print(f"on_event: service_variables=[{service_variables}]")
     if (len(service_variables) == 1 and
@@ -373,12 +391,13 @@ async def subscribe(description_url: str, service_names: any) -> None:
                 firstException = ex
             time.sleep(5)
     # start notify server/event handler
+    print(f"Available services for device: [{device.services.keys()}]")
     source = (get_local_ip(device.device_url), 0)
     print(f"subscribe: source=[{source}]")
     server = AiohttpNotifyServer(device.requester, source=source)
     await server.async_start_server()
     # gather all wanted services
-    if "*" in service_names:
+    if "*" in service_names[0]:
         service_names = device.services.keys()
         print(f"subscribe: service_names:[{service_names}]")
     services = []
