@@ -253,7 +253,6 @@ def on_event(
         last_change = service_variables[0]
         dlna_handle_notify_last_change(last_change)
     else:
-        now_playing_updated: bool = False
         sv_dict: dict[str, any] = service_variables_by_name(service_variables)
         # must have transport state
         previous_player_state: PlayerState = g_player_state
@@ -300,7 +299,6 @@ def on_event(
                     # notify now playing if configured
                     print("Updating Now Playing with song information because we have new metadata ...")
                     on_playing(new_metadata)
-                    now_playing_updated = True
                     # did the song change?
                     if g_previous_song and not same_song(g_previous_song, g_current_song):
                         print("Scrobbling because we have a new song in incoming metadata (new_metadata)")
@@ -316,7 +314,7 @@ def on_event(
             print(f"Player state is [{g_player_state.value}] previous [{previous_player_state.value}] "
                   f"metadata_key [{metadata_key}] new_metadata [{new_metadata is not None}] "
                   f"g_current_song [{g_current_song is not None}]")
-            if metadata_key:
+            if new_metadata:
                 # song changed
                 song_changed: bool = g_previous_song is None or not same_song(new_metadata, g_previous_song)
                 print(f"Song changed: [{song_changed}] "
@@ -326,24 +324,6 @@ def on_event(
                     maybe_scrobble(current_song=g_previous_song)
                     print(f"Resetting g_current_song while handling [{PlayerState.PLAYING.value}] ...")
                     g_current_song = None
-            else:
-                # we update the now playing
-                if new_metadata:
-                    if not now_playing_updated:
-                        print("Updating Now Playing with song information from incoming metadata ...")
-                        on_playing(new_metadata)
-                    else:
-                        print("Now Playing (case #1) has been updated already ...")
-                else:
-                    # just update if we have a g_current_song
-                    if g_current_song:
-                        if not now_playing_updated:
-                            print("Updating Now Playing with song information from g_current_song ...")
-                            on_playing(g_current_song)
-                        else:
-                            print("Now Playing (case #2) has been updated already ...")
-                    else:
-                        print("Empty g_current_song, cannot update Now Playing")
         elif PlayerState.PAUSED_PLAYBACK.value == g_player_state.value:
             print(f"Player state is [{g_player_state.value}] previous [{previous_player_state.value}] "
                   f"metadata_key [{metadata_key}] new_metadata [{new_metadata is not None}] "
