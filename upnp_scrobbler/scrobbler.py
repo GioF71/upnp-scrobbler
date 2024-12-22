@@ -327,15 +327,6 @@ def on_valid_event(
                 print(f"Setting g_previous_song to [{song_to_short_string(previous_song)}] ...")
                 # update g_previous_song and g_current_song
                 g_previous_song = copy_song(previous_song)
-            # # did the song change?
-            # if (g_previous_song is not None) and (not same_song(g_previous_song, g_current_song)):
-            #     print("We might need to scrobble because we have a new song in incoming metadata (incoming_metadata)")
-            #     # unless it has been already scrobbled
-            #     if not todo_scrobble and (not g_last_scrobbled or not same_song(g_last_scrobbled, g_current_song)):
-            #         todo_scrobble = True
-            #         song_to_be_scrobbled = copy_song(g_current_song)
-            #     else:
-            #         print("Scrobble aborted, would have scrobbled the same song.")
     else:
         print("Incoming incoming_metadata is None")
     # examing states
