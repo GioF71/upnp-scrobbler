@@ -211,6 +211,28 @@ def on_playing(song: Song):
         do_update_now_playing(song)
 
 
+def get_in_dict(from_dict: dict[str, any], path: list[str]) -> any:
+    curr_obj: dict[str, any] = from_dict
+    curr_path: str
+    for curr_path in path:
+        if isinstance(curr_obj, dict) and curr_path in curr_obj:
+            curr_obj = curr_obj[curr_path]
+        else:
+            return None
+    return curr_obj
+
+
+def get_player_state_from_last_change(last_change_data: str) -> str:
+    lcd_dict: dict = xmltodict.parse(last_change_data)
+    transport_state: str = (lcd_dict["Event"]["InstanceID"]["TransportState"]["@val"]
+                            if "Event" in lcd_dict 
+                            and "InstanceID" in lcd_dict["Event"]
+                            and "TransportState" in lcd_dict["Event"]["InstanceID"]
+                            and "@val" in lcd_dict["Event"]["InstanceID"]["TransportState"]
+                            else None)
+    return transport_state
+
+
 def get_items(event_name: str, event_value: any) -> any:
     parsed: dict[str, any]
     try:
@@ -230,7 +252,7 @@ def get_items(event_name: str, event_value: any) -> any:
     return p_items
 
 
-def get_player_state_from_service_variables(sv_dict: dict[str, any]) -> PlayerState:
+def get_player_state_from_transport_state(sv_dict: dict[str, any]) -> PlayerState:
     if EventName.TRANSPORT_STATE.value in sv_dict:
         return get_player_state(sv_dict[EventName.TRANSPORT_STATE.value])
     else:
@@ -259,8 +281,8 @@ def get_new_metadata(sv_dict: dict[str, any]) -> Song:
     if metadata_key:
         g_items = get_items(metadata_key, sv_dict[metadata_key])
         incoming_metadata = metadata_to_new_current_song(g_items) if g_items else None
-        if incoming_metadata.is_empty():
-            print("Incoming incoming_metadata is empty!")
+        if incoming_metadata is None or incoming_metadata.is_empty():
+            print("Incoming incoming_metadata is missing or empty!")
             incoming_metadata = None
         return incoming_metadata if incoming_metadata else None
 
@@ -314,6 +336,20 @@ def on_valid_connection_manager_control_event(
     print(f"on_valid_connection_manager_control_event: Keys in event [{sv_dict.keys()}]")
 
 
+def get_current_player_state(sv_dict: dict[str, any]) -> PlayerState:
+    # first, we try TRANSPORT_STATE
+    result: PlayerState = PlayerState.UNKNOWN
+    if EventName.TRANSPORT_STATE.value in sv_dict:
+        print(f"Trying to get PlayerState from [{EventName.TRANSPORT_STATE.value}] ...")
+        result = get_player_state_from_transport_state(sv_dict)
+    elif EventName.LAST_CHANGE.value in sv_dict:
+        print(f"Trying to get PlayerState from [{EventName.LAST_CHANGE.value}] ...")
+        transport_state: str = get_player_state_from_last_change(sv_dict[EventName.LAST_CHANGE.value])
+        if transport_state:
+            result = get_player_state(transport_state)
+    return result
+
+
 def on_valid_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
@@ -326,11 +362,7 @@ def on_valid_avtransport_event(
     print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
     # must have transport state
     previous_player_state: PlayerState = g_player_state
-    current_player_state: PlayerState = get_player_state_from_service_variables(sv_dict)
-    if current_player_state:
-        g_player_state = current_player_state
-    else:
-        print(f"No new player state available, assuming unchanged [{g_player_state.value}]")
+    g_player_state = get_current_player_state(sv_dict)
     print(f"Player state [{display_player_state(previous_player_state)}] -> "
           f"[{display_player_state(g_player_state)}]")
     # get current track uri
@@ -339,6 +371,7 @@ def on_valid_avtransport_event(
                       else None)
     if track_uri:
         print(f"Track URI = [{track_uri}]")
+    # get av transport uri
     av_transport_uri: str = (sv_dict[EventName.AV_TRANSPORT_URI.value]
                              if EventName.AV_TRANSPORT_URI.value in sv_dict
                              else None)
