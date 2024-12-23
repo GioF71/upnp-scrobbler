@@ -252,7 +252,7 @@ def get_items(event_name: str, event_value: any) -> any:
     return p_items
 
 
-def get_player_state_from_service_variables(sv_dict: dict[str, any]) -> PlayerState:
+def get_player_state_from_transport_state(sv_dict: dict[str, any]) -> PlayerState:
     if EventName.TRANSPORT_STATE.value in sv_dict:
         return get_player_state(sv_dict[EventName.TRANSPORT_STATE.value])
     else:
@@ -281,8 +281,8 @@ def get_new_metadata(sv_dict: dict[str, any]) -> Song:
     if metadata_key:
         g_items = get_items(metadata_key, sv_dict[metadata_key])
         incoming_metadata = metadata_to_new_current_song(g_items) if g_items else None
-        if incoming_metadata.is_empty():
-            print("Incoming incoming_metadata is empty!")
+        if incoming_metadata is None or incoming_metadata.is_empty():
+            print("Incoming incoming_metadata is missing or empty!")
             incoming_metadata = None
         return incoming_metadata if incoming_metadata else None
 
@@ -336,6 +336,20 @@ def on_valid_connection_manager_control_event(
     print(f"on_valid_connection_manager_control_event: Keys in event [{sv_dict.keys()}]")
 
 
+def get_current_player_state(sv_dict: dict[str, any]) -> PlayerState:
+    # first, we try TRANSPORT_STATE
+    result: PlayerState = PlayerState.UNKNOWN
+    if EventName.TRANSPORT_STATE.value in sv_dict:
+        print(f"Trying to get PlayerState from [{EventName.TRANSPORT_STATE.value}] ...")
+        result = get_player_state_from_transport_state(sv_dict)
+    elif EventName.LAST_CHANGE.value in sv_dict:
+        print(f"Trying to get PlayerState from [{EventName.LAST_CHANGE.value}] ...")
+        transport_state: str = get_player_state_from_last_change(sv_dict[EventName.LAST_CHANGE.value])
+        if transport_state:
+            result = get_player_state(transport_state)
+    return result
+
+
 def on_valid_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
@@ -348,21 +362,7 @@ def on_valid_avtransport_event(
     print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
     # must have transport state
     previous_player_state: PlayerState = g_player_state
-    current_player_state: PlayerState = get_player_state_from_service_variables(sv_dict)
-    if current_player_state:
-        g_player_state = current_player_state
-    else:
-        print(f"No new player state available in TRANSPORT_STATE, assuming unchanged [{g_player_state.value}]")
-        if EventName.LAST_CHANGE.value in sv_dict.keys():
-            transport_state: str = get_player_state_from_last_change(sv_dict[EventName.LAST_CHANGE.value])
-            if transport_state:
-                print(f"Got player state from [{EventName.LAST_CHANGE.value}] -> "
-                      f"[{transport_state}]")
-                current_player_state = get_player_state(transport_state)
-                print(f"Got player state from [{EventName.LAST_CHANGE.value}] -> "
-                      f"[{transport_state}] -> "
-                      f"[{current_player_state.value}]")
-                g_player_state = current_player_state
+    g_player_state = get_current_player_state(sv_dict)
     print(f"Player state [{display_player_state(previous_player_state)}] -> "
           f"[{display_player_state(g_player_state)}]")
     # get current track uri
