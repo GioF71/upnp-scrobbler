@@ -35,8 +35,6 @@ key_artist: str = "upnp:artist"
 key_album: str = "upnp:album"
 key_duration: tuple[str, str] = ["res", "@duration"]
 
-item_path: list[str] = ["DIDL-Lite", "item"]
-
 g_previous_song: Song = None
 g_current_song: Song = None
 g_last_scrobbled: Song = None
@@ -234,6 +232,7 @@ def get_player_state_from_last_change(last_change_data: str) -> str:
 
 
 def get_items(event_name: str, event_value: any) -> any:
+    item_path: list[str] = ["DIDL-Lite", "item"]
     parsed: dict[str, any]
     try:
         parsed = xmltodict.parse(event_value)
