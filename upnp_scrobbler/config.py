@@ -41,3 +41,10 @@ def get_enable_now_playing() -> bool:
     return get_bool_config(
         env_key="ENABLE_NOW_PLAYING",
         default_value=constants.DEFAULT_ENABLE_NOW_PLAYING)
+
+
+def get_config_dir() -> str:
+    config_dir: str = os.getenv("CONFIG_DIR")
+    if not config_dir:
+        config_dir = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config'))
+    return config_dir

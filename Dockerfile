@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS BASE
+FROM python:3-slim AS base
 
 RUN apt-get update
 RUN apt-get install -y build-essential
@@ -13,21 +13,25 @@ RUN apt-get autoremove -y
 RUN rm -rf /var/lib/apt/lists/*
 
 FROM scratch
-COPY --from=BASE / /
+COPY --from=base / /
 
 LABEL maintainer="GioF71"
 LABEL source="https://github.com/GioF71/upnp-scrobbler"
 
-ENV DEVICE_URL ""
-ENV LAST_FM_API_KEY ""
-ENV LAST_FM_SHARED_SECRET ""
-ENV LAST_FM_USERNAME ""
-ENV LAST_FM_PASSWORD_HASH ""
-ENV LAST_FM_PASSWORD ""
+ENV DEVICE_URL=""
 
-ENV DURATION_THRESHOLD ""
+# the LAST_FM_ variables are now deprecated and will be removed soon
+ENV LAST_FM_API_KEY=""
+ENV LAST_FM_SHARED_SECRET=""
+ENV LAST_FM_USERNAME=""
+ENV LAST_FM_PASSWORD_HASH=""
+ENV LAST_FM_PASSWORD=""
 
-ENV ENABLE_NOW_PLAYING ""
+ENV DURATION_THRESHOLD=""
+
+ENV ENABLE_NOW_PLAYING=""
+
+ENV CONFIG_DIR=/config
 
 ENV PYTHONUNBUFFERED=1
 
