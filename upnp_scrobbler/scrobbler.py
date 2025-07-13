@@ -10,7 +10,6 @@ import os
 import datetime
 import pylast
 import socket
-import time
 import webbrowser
 
 from typing import Optional, Sequence, Callable
@@ -169,6 +168,11 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
 def create_last_fm_network_session_key(
         last_fm_key: str,
         last_fm_secret: str) -> pylast.LastFMNetwork:
+    session_key_dir = os.path.join(
+        config.get_config_dir(),
+        constants.Constants.APP_NAME.value,
+        constants.Constants.LAST_FM.value)
+    os.makedirs(name=session_key_dir, exist_ok=True)
     session_key_file = os.path.join(
         config.get_config_dir(),
         constants.Constants.APP_NAME.value,
