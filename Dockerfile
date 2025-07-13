@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS BASE
+FROM python:3.9-slim AS base
 
 RUN apt-get update
 RUN apt-get install -y build-essential
@@ -13,7 +13,7 @@ RUN apt-get autoremove -y
 RUN rm -rf /var/lib/apt/lists/*
 
 FROM scratch
-COPY --from=BASE / /
+COPY --from=base / /
 
 LABEL maintainer="GioF71"
 LABEL source="https://github.com/GioF71/upnp-scrobbler"
