@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS base
+FROM python:3-slim AS base
 
 RUN apt-get update
 RUN apt-get install -y build-essential
