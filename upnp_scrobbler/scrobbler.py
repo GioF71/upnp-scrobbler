@@ -10,6 +10,8 @@ import os
 import datetime
 import pylast
 import socket
+import time
+import webbrowser
 
 from typing import Optional, Sequence, Callable
 
@@ -27,15 +29,13 @@ from util import duration_str_to_sec
 from event_name import EventName
 
 import config
-
+import constants
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
 key_artist: str = "upnp:artist"
 key_album: str = "upnp:album"
 key_duration: tuple[str, str] = ["res", "@duration"]
-
-item_path: list[str] = ["DIDL-Lite", "item"]
 
 g_previous_song: Song = None
 g_current_song: Song = None
@@ -147,10 +147,64 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
     last_fm_secret: str = os.getenv("LAST_FM_SHARED_SECRET")
     last_fm_username: str = os.getenv("LAST_FM_USERNAME")
     last_fm_password_hash: str = os.getenv("LAST_FM_PASSWORD_HASH")
+    last_fm_password: str = os.getenv("LAST_FM_PASSWORD")
+    if last_fm_key and last_fm_secret and last_fm_username and (last_fm_password_hash or last_fm_password):
+        return create_last_fm_network_legacy(
+            last_fm_key=last_fm_key,
+            last_fm_secret=last_fm_secret,
+            last_fm_username=last_fm_username,
+            last_fm_password_hash=last_fm_password_hash,
+            last_fm_password=last_fm_password)
+    elif last_fm_key and last_fm_secret:
+        # create a new or use existing session key.
+        return create_last_fm_network_session_key(
+            last_fm_key=last_fm_key,
+            last_fm_secret=last_fm_secret)
+    else:
+        # cannot enable last.fm
+        # should be allowed only if last.fm is disabled
+        return None
+
+
+def create_last_fm_network_session_key(
+        last_fm_key: str,
+        last_fm_secret: str) -> pylast.LastFMNetwork:
+    session_key_file = os.path.join(
+        config.get_config_dir(),
+        constants.Constants.APP_NAME.value,
+        constants.Constants.LAST_FM.value,
+        constants.Constants.LAST_FM_SESSION_KEY.value)
+    network: pylast.LastFMNetwork = pylast.LastFMNetwork(last_fm_key, last_fm_secret)
+    if not os.path.exists(session_key_file):
+        skg: pylast.SessionKeyGenerator = pylast.SessionKeyGenerator(network)
+        url = skg.get_web_auth_url()
+        print(f"Please authorize this script to access your account: {url}\n")
+        webbrowser.open(url)
+        while True:
+            try:
+                session_key = skg.get_web_auth_session_key(url)
+                with open(session_key_file, "w") as f:
+                    f.write(session_key)
+                break
+            except pylast.WSError:
+                time.sleep(1)
+    else:
+        session_key = open(session_key_file).read()
+    network.session_key = session_key
+    return network
+
+
+def create_last_fm_network_legacy(
+        last_fm_key: str,
+        last_fm_secret: str,
+        last_fm_username: str,
+        last_fm_password_hash: str = None,
+        last_fm_password: str = None) -> pylast.LastFMNetwork:
+    if not last_fm_password_hash and not last_fm_password:
+        raise Exception("One between last_fm_password_hash and last_fm_password must be provided")
     if not last_fm_password_hash:
-        # try cleartext
-        password: str = os.getenv("LAST_FM_PASSWORD")
-        last_fm_password_hash = pylast.md5(password)
+        # try cleartext, not recommended
+        last_fm_password_hash = pylast.md5(last_fm_password)
     network: pylast.LastFMNetwork = pylast.LastFMNetwork(
         api_key=last_fm_key,
         api_secret=last_fm_secret,
@@ -234,6 +288,7 @@ def get_player_state_from_last_change(last_change_data: str) -> str:
 
 
 def get_items(event_name: str, event_value: any) -> any:
+    item_path: list[str] = ["DIDL-Lite", "item"]
     parsed: dict[str, any]
     try:
         parsed = xmltodict.parse(event_value)
@@ -584,6 +639,7 @@ async def subscribe(description_url: str, subscription_list: list[Subscription])
 
 
 async def async_main() -> None:
+    create_last_fm_network()
     """Async main."""
     #  Your device's IP and port go here
     device = os.getenv("DEVICE_URL")
