@@ -61,6 +61,7 @@ The preferred way of running this application is through Docker.
 ### LAST.fm authentication
 
 If username and password (hash or plaintext) is not provided, the application will prompt you to authorized the app.  
+You will need to watch the logs, al least for the first run.  
 Please note that API key and secret are still required.  
 
 ### Sample compose file
