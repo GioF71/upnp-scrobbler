@@ -58,6 +58,20 @@ DUMP_EVENT_KEY_VALUES|Dump data from each event keys, defaults to `no`
 
 The preferred way of running this application is through Docker.  
 
+### Configuration files
+
+#### LAST.fm configuration file
+
+LAST.FM related variables can be stored in a file inside the `/config` volume, exacly at `/config/upnp-scrobbler/last.fm/last_fm_config.env`. Example:  
+
+```text
+LAST_FM_API_KEY=xxxx
+LAST_FM_SHARED_SECRET=xxxx
+LAST_FM_USERNAME=xxxx
+LAST_FM_PASSWORD=xxxx
+LAST_FM_PASSWORD_HASH=xxxx
+```
+
 ### LAST.fm authentication
 
 If username and password (hash or plaintext) is not provided, the application will prompt you to authorize the app.  
