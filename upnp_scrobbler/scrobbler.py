@@ -643,7 +643,6 @@ async def subscribe(description_url: str, subscription_list: list[Subscription])
 
 
 async def async_main() -> None:
-    create_last_fm_network()
     """Async main."""
     #  Your device's IP and port go here
     device = os.getenv("DEVICE_URL")
@@ -669,6 +668,11 @@ def get_ip():
 
 
 def main() -> None:
+    last_fm_config_dir: str = config.get_lastfm_config_dir()
+    if os.path.exists(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value)):
+        config.load_env_file(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value))
+    # early initializtion of last.fm network
+    create_last_fm_network()
     host_ip: str = get_ip()
     print(f"Running on [{host_ip}]")
     print(f"Now Playing enabled: [{config.get_enable_now_playing()}]")

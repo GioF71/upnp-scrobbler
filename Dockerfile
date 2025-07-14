@@ -21,11 +21,11 @@ LABEL source="https://github.com/GioF71/upnp-scrobbler"
 ENV DEVICE_URL=""
 
 # the LAST_FM_ variables are now deprecated and will be removed soon
-ENV LAST_FM_API_KEY=""
-ENV LAST_FM_SHARED_SECRET=""
-ENV LAST_FM_USERNAME=""
-ENV LAST_FM_PASSWORD_HASH=""
-ENV LAST_FM_PASSWORD=""
+# ENV LAST_FM_API_KEY=""
+# ENV LAST_FM_SHARED_SECRET=""
+# ENV LAST_FM_USERNAME=""
+# ENV LAST_FM_PASSWORD_HASH=""
+# ENV LAST_FM_PASSWORD=""
 
 ENV DURATION_THRESHOLD=""
 

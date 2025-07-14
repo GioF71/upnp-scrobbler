@@ -1,5 +1,11 @@
 import os
 import constants
+import dotenv
+
+
+def load_env_file(file_name: str):
+    if os.path.exists(file_name):
+        dotenv.load_dotenv(dotenv_path=file_name)
 
 
 def get_bool_config(env_key: str, default_value: bool) -> bool:
@@ -41,6 +47,20 @@ def get_enable_now_playing() -> bool:
     return get_bool_config(
         env_key="ENABLE_NOW_PLAYING",
         default_value=constants.DEFAULT_ENABLE_NOW_PLAYING)
+
+
+def get_lastfm_config_dir() -> str:
+    p = os.path.join(get_app_config_dir(), constants.Constants.LAST_FM.value)
+    if not os.path.exists(p):
+        os.makedirs(p, exist_ok=True)
+    return p
+
+
+def get_app_config_dir() -> str:
+    p = os.path.join(get_config_dir(), constants.Constants.APP_NAME.value)
+    if not os.path.exists(p):
+        os.makedirs(p, exist_ok=True)
+    return p
 
 
 def get_config_dir() -> str:
