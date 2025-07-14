@@ -1,6 +1,7 @@
 import os
 import constants
 import dotenv
+import appdirs
 
 
 def load_env_file(file_name: str):
@@ -66,5 +67,5 @@ def get_app_config_dir() -> str:
 def get_config_dir() -> str:
     config_dir: str = os.getenv("CONFIG_DIR")
     if not config_dir:
-        config_dir = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config'))
+        config_dir = appdirs.user_config_dir()
     return config_dir

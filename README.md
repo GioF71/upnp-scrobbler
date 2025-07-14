@@ -58,11 +58,13 @@ DUMP_EVENT_KEY_VALUES|Dump data from each event keys, defaults to `no`
 
 The preferred way of running this application is through Docker.  
 
-### Configuration files
+### Configuration directory
+
+When using docker, the base configuration directory is `/config`. When running outside of docker, the code looks for the default config directory using the [`appdirs`](https://github.com/ActiveState/appdirs) library.  
 
 #### LAST.fm configuration file
 
-LAST.FM related variables can be stored in a file inside the `/config` volume, exacly at `/config/upnp-scrobbler/last.fm/last_fm_config.env`. Example:  
+LAST.FM related variables can be stored in a file inside the `<config-directory>` volume, exacly at `<config-directory>/upnp-scrobbler/last.fm/last_fm_config.env`. Example:  
 
 ```text
 LAST_FM_API_KEY=xxxx
@@ -71,6 +73,8 @@ LAST_FM_USERNAME=xxxx
 LAST_FM_PASSWORD=xxxx
 LAST_FM_PASSWORD_HASH=xxxx
 ```
+
+See [this section](#configuration-directory) for information about the path for the `<config-directory>` expression.  
 
 ### LAST.fm authentication
 
