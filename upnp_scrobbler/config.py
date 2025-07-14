@@ -1,7 +1,7 @@
 import os
 import constants
 import dotenv
-import appdirs
+import platformdirs
 
 
 def load_env_file(file_name: str):
@@ -67,5 +67,5 @@ def get_app_config_dir() -> str:
 def get_config_dir() -> str:
     config_dir: str = os.getenv("CONFIG_DIR")
     if not config_dir:
-        config_dir = appdirs.user_config_dir()
+        config_dir = platformdirs.user_config_dir()
     return config_dir

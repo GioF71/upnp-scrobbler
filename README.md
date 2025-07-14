@@ -60,7 +60,7 @@ The preferred way of running this application is through Docker.
 
 ### Configuration directory
 
-When using docker, the base configuration directory is `/config`. When running outside of docker, the code looks for the default config directory using the [`appdirs`](https://github.com/ActiveState/appdirs) library.  
+When using docker, the base configuration directory is `/config`. When running outside of docker, the code looks for the default config directory using the [`platformdirs`](https://github.com/tox-dev/platformdirs) library.  
 
 #### LAST.fm configuration file
 
