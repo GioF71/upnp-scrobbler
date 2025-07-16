@@ -69,8 +69,11 @@ LAST.FM related variables can be stored in a file inside the `<config-directory>
 ```text
 LAST_FM_API_KEY=xxxx
 LAST_FM_SHARED_SECRET=xxxx
+# optional
 LAST_FM_USERNAME=xxxx
+# optional
 LAST_FM_PASSWORD=xxxx
+# optional
 LAST_FM_PASSWORD_HASH=xxxx
 ```
 
