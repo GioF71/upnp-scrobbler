@@ -643,14 +643,18 @@ async def subscribe(description_url: str, subscription_list: list[Subscription])
 
 async def async_main() -> None:
     """Async main."""
-    #  Your device's IP and port go here
+    cfg_device_url: str = os.getenv("DEVICE_URL")
+    cfg_device_udn: str = os.getenv("DEVICE_UDN")
+    cfg_device_name: str = os.getenv("DEVICE_NAME")
+    if not (cfg_device_url or cfg_device_udn or cfg_device_name):
+        # misconfiguration
+        print("Please specify one among DEVICE_URL, DEVICE_UDN or DEVICE_NAME!")
+        return None
     while True:
         device_url: str = None
         device_timeout_sec: int = int(os.getenv("DEVICE_TIMEOUT_SEC", "60"))
         print(f"Using timeout [{device_timeout_sec}] second(s)")
-        cfg_device_url: str = os.getenv("DEVICE_URL")
-        cfg_device_udn: str = os.getenv("DEVICE_UDN")
-        cfg_device_name: str = os.getenv("DEVICE_NAME")
+
         if cfg_device_url:
             print(f"Using specified device url [{cfg_device_url}]")
             device_url = cfg_device_url
