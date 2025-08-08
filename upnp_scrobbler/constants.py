@@ -5,6 +5,7 @@ class Constants(Enum):
     APP_NAME = "upnp-scrobbler"
     LAST_FM = "last.fm"
     LAST_FM_SESSION_KEY = "last_fm_session_key"
+    LAST_FM_CONFIG = "last_fm_config.env"
 
 
 class _ConfigParamData:
