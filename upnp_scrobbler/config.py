@@ -1,5 +1,12 @@
 import os
 import constants
+import dotenv
+import platformdirs
+
+
+def load_env_file(file_name: str):
+    if os.path.exists(file_name):
+        dotenv.load_dotenv(dotenv_path=file_name)
 
 
 def get_bool_config(env_key: str, default_value: bool) -> bool:
@@ -43,8 +50,22 @@ def get_enable_now_playing() -> bool:
         default_value=constants.DEFAULT_ENABLE_NOW_PLAYING)
 
 
+def get_lastfm_config_dir() -> str:
+    p = os.path.join(get_app_config_dir(), constants.Constants.LAST_FM.value)
+    if not os.path.exists(p):
+        os.makedirs(p, exist_ok=True)
+    return p
+
+
+def get_app_config_dir() -> str:
+    p = os.path.join(get_config_dir(), constants.Constants.APP_NAME.value)
+    if not os.path.exists(p):
+        os.makedirs(p, exist_ok=True)
+    return p
+
+
 def get_config_dir() -> str:
     config_dir: str = os.getenv("CONFIG_DIR")
     if not config_dir:
-        config_dir = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config'))
+        config_dir = platformdirs.user_config_dir()
     return config_dir

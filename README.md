@@ -20,7 +20,7 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [ ] Scrobbling to libre.fm
 
 ## Build
@@ -42,7 +42,10 @@ Those will be needed for the configuration.
 
 NAME|DESCRIPTION
 :---|:---
-DEVICE_URL|Device URL of your UPnP Device (example: `http://192.168.1.7:49152/description.xml`)
+DEVICE_URL|Device URL of your UPnP Device, alternative to DEVICE_UDN and DEVICE_NAME (example: `http://192.168.1.7:49152/description.xml`)
+DEVICE_UDN|Device identifier, alternative to DEVICE_URL and DEVICE_NAME must match one device
+DEVICE_NAME|Device friendly name, alternative to DEVICE_URL and DEVICE_UDN must match one device
+DEVICE_TIMEOUT_SEC|Int value, defaults to `30` seconds
 LAST_FM_API_KEY|Your LAST.fm api key, mandatory
 LAST_FM_SHARED_SECRET|Your LAST.fm api key, mandatory
 LAST_FM_USERNAME|Your LAST.fm account username, optional
@@ -57,6 +60,27 @@ DUMP_EVENT_KEY_VALUES|Dump data from each event keys, defaults to `no`
 ## Running
 
 The preferred way of running this application is through Docker.  
+
+### Configuration directory
+
+When using docker, the base configuration directory is `/config`. When running outside of docker, the code looks for the default config directory using the [`platformdirs`](https://github.com/tox-dev/platformdirs) library.  
+
+#### LAST.fm configuration file
+
+LAST.FM related variables can be stored in a file inside the `<config-directory>` volume, exacly at `<config-directory>/upnp-scrobbler/last.fm/last_fm_config.env`. Example:  
+
+```text
+LAST_FM_API_KEY=xxxx
+LAST_FM_SHARED_SECRET=xxxx
+# optional
+LAST_FM_USERNAME=xxxx
+# optional
+LAST_FM_PASSWORD=xxxx
+# optional
+LAST_FM_PASSWORD_HASH=xxxx
+```
+
+See [this section](#configuration-directory) for information about the path for the `<config-directory>` expression.  
 
 ### LAST.fm authentication
 
@@ -95,6 +119,9 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-08-08|Allow to specify last.fm credentials using an external file (`last_fm_config.env`)
+2025-08-08|Allow to specify device by udn (DEVICE_UDN)
+2025-08-08|Allow to specify device by friendly name (DEVICE_NAME)
 2024-12-23|Get transport state from LAST_CHANGE if not in TRANSPORT_STATE
 2024-12-22|Rewrite for better linearity, should avoid sparse management of variables
 2024-12-22|Avoid to require a g_previous_song in order to trigger a scrobble
