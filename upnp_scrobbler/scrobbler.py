@@ -29,6 +29,7 @@ from event_name import EventName
 
 import config
 import constants
+import scanner
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
@@ -643,12 +644,54 @@ async def subscribe(description_url: str, subscription_list: list[Subscription])
 async def async_main() -> None:
     """Async main."""
     #  Your device's IP and port go here
-    device = os.getenv("DEVICE_URL")
-    if not device:
-        raise Exception("The variable DEVICE_URL is mandatory")
-    await subscribe(
-        description_url=device,
-        subscription_list=subscription_list)
+    while True:
+        device_url: str = None
+        device_timeout_sec: int = int(os.getenv("DEVICE_TIMEOUT_SEC", "60"))
+        print(f"Using timeout [{device_timeout_sec}] second(s)")
+        cfg_device_url: str = os.getenv("DEVICE_URL")
+        cfg_device_udn: str = os.getenv("DEVICE_UDN")
+        cfg_device_name: str = os.getenv("DEVICE_NAME")
+        if cfg_device_url:
+            print(f"Using specified device url [{cfg_device_url}]")
+            device_url = cfg_device_url
+        if not device_url and cfg_device_udn:
+            print(f"Trying to find device by udn [{cfg_device_udn}]")
+            device_url_list: list[str] = await scanner.get_device_url_by_udn(
+                device_udn=cfg_device_udn,
+                timeout=device_timeout_sec)
+            print(f"Devices for [{cfg_device_udn}] -> [{device_url_list}]")
+            url_list_len: str = len(device_url_list if device_url_list else [])
+            if url_list_len == 1:
+                # one match
+                device_url = device_url_list[0]
+            else:
+                # missing, or more than one
+                print(f"There are [{url_list_len}] devices matching udn [{cfg_device_udn}], expecting 1")
+        elif not device_url and cfg_device_name:
+            print(f"Trying to find device by friendly name [{cfg_device_name}]")
+            device_url_list: list[str] = await scanner.get_device_url_by_name(
+                device_name=cfg_device_name,
+                timeout=device_timeout_sec)
+            print(f"Devices for [{cfg_device_name}] -> [{device_url_list}]")
+            url_list_len: str = len(device_url_list if device_url_list else [])
+            if url_list_len == 1:
+                # one match
+                device_url = device_url_list[0]
+            else:
+                # missing, or more than one
+                print(f"There are [{url_list_len}] devices matching [{cfg_device_name}], expecting 1")
+        # did we get the device_url?
+        if not device_url:
+            # raise Exception("We need a DEVICE_URL!")
+            print("Device not found, retrying ...")
+        if device_url:
+            print(f"Selected device with URL [{device_url}] ...")
+            try:
+                await subscribe(
+                    description_url=device_url,
+                    subscription_list=subscription_list)
+            except Exception as ex:
+                print(f"An error occurred [{type(ex)}] [{ex}], retrying ...")
 
 
 def get_ip():

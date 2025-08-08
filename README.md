@@ -42,7 +42,10 @@ Those will be needed for the configuration.
 
 NAME|DESCRIPTION
 :---|:---
-DEVICE_URL|Device URL of your UPnP Device (example: `http://192.168.1.7:49152/description.xml`)
+DEVICE_URL|Device URL of your UPnP Device, alternative to DEVICE_UDN and DEVICE_NAME (example: `http://192.168.1.7:49152/description.xml`)
+DEVICE_UDN|Device identifier, alternative to DEVICE_URL and DEVICE_NAME must match one device
+DEVICE_NAME|Device friendly name, alternative to DEVICE_URL and DEVICE_UDN must match one device
+DEVICE_TIMEOUT_SEC|Int value, defaults to `30` seconds
 LAST_FM_API_KEY|Your LAST.fm api key, mandatory
 LAST_FM_SHARED_SECRET|Your LAST.fm api key, mandatory
 LAST_FM_USERNAME|Your LAST.fm account username, optional
