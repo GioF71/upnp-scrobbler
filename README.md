@@ -20,7 +20,7 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [ ] Scrobbling to libre.fm
 
 ## Build
@@ -119,6 +119,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-08-08|Allow to specify last.fm credentials using an external file (`last_fm_config.env`)
 2025-08-08|Allow to specify device by udn (DEVICE_UDN)
 2025-08-08|Allow to specify device by friendly name (DEVICE_NAME)
 2024-12-23|Get transport state from LAST_CHANGE if not in TRANSPORT_STATE
