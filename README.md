@@ -121,6 +121,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-08-09|Initial support for [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect)
 2025-08-09|Increasing timeouts
 2025-08-09|Fixed device search, would fail if first hit is not the expected one
 2025-08-08|Allow to specify last.fm credentials using an external file (`last_fm_config.env`)
