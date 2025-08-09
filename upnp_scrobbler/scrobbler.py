@@ -428,7 +428,11 @@ def on_valid_avtransport_event(
     print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
     # must have transport state
     previous_player_state: PlayerState = g_player_state
-    g_player_state = get_current_player_state(sv_dict)
+    # see if we have a new player state
+    curr_player_state: PlayerState = get_current_player_state(sv_dict)
+    g_player_state = (curr_player_state
+                      if curr_player_state and curr_player_state != PlayerState.UNKNOWN
+                      else g_player_state)
     print(f"Player state [{display_player_state(previous_player_state)}] -> "
           f"[{display_player_state(g_player_state)}]")
     # get current track uri
