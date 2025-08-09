@@ -68,7 +68,7 @@ async def get_device_url_by_name(device_name: str, timeout: int) -> list[str]:
         device: UpnpDevice = await factory.async_create_device(location)
         if device:
             fn: str = device.friendly_name
-            print(f"Found device with friendly name [{fn}]")
+            print(f"Found device with udn:[{device.udn}] name:[{device.friendly_name}] url:[{location}]")
             if device_name == fn:
                 print(f"Device [{device.udn}] matches friendly name [{fn}]")
                 # does by_name already contain friendly name?
@@ -99,7 +99,7 @@ async def get_device_url_by_udn(device_udn: str, timeout: int) -> list[str]:
         device: UpnpDevice = await factory.async_create_device(location)
         if device:
             udn: str = device.udn
-            print(f"Found device with udn [{udn}]")
+            print(f"Found device with udn:[{udn}] name:[{device.friendly_name}] url:[{location}]")
             if device_udn.lower() == udn.lower():
                 print(f"Device [{device.friendly_name}] matches udn [{device.udn}]")
                 # does by_name already contain udn?

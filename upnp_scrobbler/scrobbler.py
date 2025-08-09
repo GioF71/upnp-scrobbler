@@ -166,6 +166,13 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
         return None
 
 
+def get_last_fm_session_key_file_name() -> str:
+    return os.path.join(
+        config.get_app_config_dir(),
+        constants.Constants.LAST_FM.value,
+        constants.Constants.LAST_FM_SESSION_KEY.value)
+
+
 def create_last_fm_network_session_key(
         last_fm_key: str,
         last_fm_secret: str) -> pylast.LastFMNetwork:
@@ -173,12 +180,12 @@ def create_last_fm_network_session_key(
         config.get_app_config_dir(),
         constants.Constants.LAST_FM.value)
     os.makedirs(name=session_key_dir, exist_ok=True)
-    session_key_file = os.path.join(
-        config.get_app_config_dir(),
-        constants.Constants.LAST_FM.value,
-        constants.Constants.LAST_FM_SESSION_KEY.value)
+    session_key_file_name = get_last_fm_session_key_file_name()
     network: pylast.LastFMNetwork = pylast.LastFMNetwork(last_fm_key, last_fm_secret)
-    if not os.path.exists(session_key_file):
+    session_key_file_exists: bool = os.path.exists(session_key_file_name)
+    print(f"LAST.fm session file exists [{session_key_file_exists}] at path [{session_key_file_name}]")
+    # can we validate the LAST.fm connection?
+    if not session_key_file_exists:
         skg: pylast.SessionKeyGenerator = pylast.SessionKeyGenerator(network)
         url = skg.get_web_auth_url()
         print(f"Please authorize this script to access your account: {url}\n")
@@ -186,13 +193,14 @@ def create_last_fm_network_session_key(
         while True:
             try:
                 session_key = skg.get_web_auth_session_key(url)
-                with open(session_key_file, "w") as f:
+                with open(session_key_file_name, "w") as f:
+                    print(f"Saving LAST.fm session file at path [{session_key_file_name}]")
                     f.write(session_key)
                 break
             except pylast.WSError:
                 time.sleep(1)
     else:
-        session_key = open(session_key_file).read()
+        session_key = open(session_key_file_name).read()
     network.session_key = session_key
     return network
 
