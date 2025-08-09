@@ -1,23 +1,11 @@
 import asyncio
-import sys
+# import sys
 
 from async_upnp_client.aiohttp import AiohttpRequester
 from async_upnp_client.client_factory import UpnpFactory
-
-from async_upnp_client.search import async_search
 from async_upnp_client.client import UpnpDevice
 from async_upnp_client.profiles.dlna import DmrDevice
-
-from async_upnp_client.const import AddressTupleVXType, AddressTupleV4Type
 from async_upnp_client.utils import CaseInsensitiveDict
-
-# from async_upnp_client.search import SsdpSearchListener
-# from async_upnp_client.aiohttp import AiohttpSessionRequester
-# from async_upnp_client import UpnpFactory
-from typing import Coroutine
-
-
-# SOURCE = ("0.0.0.0", 0)
 
 
 async def discover_dmr_devices(source, timeout) -> set[CaseInsensitiveDict]:
@@ -30,27 +18,38 @@ async def discover_dmr_devices(source, timeout) -> set[CaseInsensitiveDict]:
     return discoveries
 
 
-async def discover(timeout: int, source=("0.0.0.0", 0)):
+async def discover(timeout: int, source=("0.0.0.0", 0), dump_discovery: bool = False):
     discoveries: set[CaseInsensitiveDict] = await discover_dmr_devices(source=("0.0.0.0", 0), timeout=timeout)
+    discovery: CaseInsensitiveDict
+    for discovery in discoveries if discoveries else set():
+        location: str = discovery["location"] if "location" in discovery else None
+        print(f"Discovery found device at: [{location}] ...")
+        if dump_discovery:
+            await show_discovery(discovery)
     return discoveries
 
 
 async def show_discoveries(discoveries: set[CaseInsensitiveDict]):
     print(discoveries)
-    d: CaseInsensitiveDict
-    for d in discoveries if discoveries else set():
-        location: str = d["location"] if "location" in d else None
-        print(f"Location [{location}]")
-        if location:
-            requester = AiohttpRequester()
-            factory = UpnpFactory(requester)
-            # create a device
-            device = await factory.async_create_device(location)
-            if device:
-                device_fn: str = device.friendly_name
-                device_id: str = device.udn
-                print("Device: {}".format(device))
-                print(f"[{device_fn}] -> [{device_id}]")
+    discovery: CaseInsensitiveDict
+    for discovery in discoveries if discoveries else set():
+        show_discovery(discovery)
+
+
+async def show_discovery(d: CaseInsensitiveDict):
+    location: str = d["location"] if "location" in d else None
+    if location:
+        requester = AiohttpRequester()
+        factory = UpnpFactory(requester)
+        # create a device
+        device = await factory.async_create_device(location)
+        if device:
+            device_fn: str = device.friendly_name
+            device_id: str = device.udn
+            # print("Device: {}".format(device))
+            print(f"Device name:[{device_fn}] udn:[{device_id}] url:[{location}]")
+    else:
+        print("Location is empty, nothing to do.")
 
 
 async def get_device_url_by_name(device_name: str, timeout: int) -> list[str]:
@@ -81,7 +80,7 @@ async def get_device_url_by_name(device_name: str, timeout: int) -> list[str]:
                     by_name[fn] = device_list
                 print(f"Adding location [{location}] for friendly_name [{fn}] -> ([{device.udn}])")
                 device_list.append(location)
-        return by_name[device_name] if device_name in by_name else []
+    return by_name[device_name] if device_name in by_name else []
 
 
 async def get_device_url_by_udn(device_udn: str, timeout: int) -> list[str]:
@@ -99,9 +98,9 @@ async def get_device_url_by_udn(device_udn: str, timeout: int) -> list[str]:
         # create a device
         device: UpnpDevice = await factory.async_create_device(location)
         if device:
-            id: str = device.udn
-            print(f"Found device with udn [{id}]")
-            if device_udn.lower() == id.lower():
+            udn: str = device.udn
+            print(f"Found device with udn [{udn}]")
+            if device_udn.lower() == udn.lower():
                 print(f"Device [{device.friendly_name}] matches udn [{device.udn}]")
                 # does by_name already contain udn?
                 device_list: list[str] = None
@@ -112,8 +111,8 @@ async def get_device_url_by_udn(device_udn: str, timeout: int) -> list[str]:
                     by_name[device_udn] = device_list
                 print(f"Adding location [{location}] for udn [{device_udn}] -> [{device.friendly_name}]")
                 device_list.append(location)
-        return by_name[device_udn] if device_udn in by_name else []
+    return by_name[device_udn] if device_udn in by_name else []
 
 
 if __name__ == "__main__":
-    asyncio.run(discover())
+    asyncio.run(discover(timeout=5, dump_discovery=True))

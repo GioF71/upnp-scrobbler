@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/upnp_scrobbler/scrobbler.py",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/scrobbler.env"
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "name": "Python Debugger: scanner",
@@ -15,7 +15,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/upnp_scrobbler/scanner.py",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/scrobbler.env",
+            "envFile": "${workspaceFolder}/.env",
             "justMyCode": false
         }
     ]
