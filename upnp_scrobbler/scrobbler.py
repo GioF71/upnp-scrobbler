@@ -282,7 +282,7 @@ def get_in_dict(from_dict: dict[str, any], path: list[str]) -> any:
 def get_player_state_from_last_change(last_change_data: str) -> str:
     lcd_dict: dict = xmltodict.parse(last_change_data)
     transport_state: str = (lcd_dict["Event"]["InstanceID"]["TransportState"]["@val"]
-                            if "Event" in lcd_dict 
+                            if "Event" in lcd_dict
                             and "InstanceID" in lcd_dict["Event"]
                             and "TransportState" in lcd_dict["Event"]["InstanceID"]
                             and "@val" in lcd_dict["Event"]["InstanceID"]["TransportState"]
