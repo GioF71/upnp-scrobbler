@@ -282,7 +282,7 @@ def get_in_dict(from_dict: dict[str, any], path: list[str]) -> any:
 def get_player_state_from_last_change(last_change_data: str) -> str:
     lcd_dict: dict = xmltodict.parse(last_change_data)
     transport_state: str = (lcd_dict["Event"]["InstanceID"]["TransportState"]["@val"]
-                            if "Event" in lcd_dict 
+                            if "Event" in lcd_dict
                             and "InstanceID" in lcd_dict["Event"]
                             and "TransportState" in lcd_dict["Event"]["InstanceID"]
                             and "@val" in lcd_dict["Event"]["InstanceID"]["TransportState"]
@@ -643,14 +643,20 @@ async def subscribe(description_url: str, subscription_list: list[Subscription])
 
 async def async_main() -> None:
     """Async main."""
-    #  Your device's IP and port go here
+    device_timeout_sec_initial: int = int(os.getenv("DEVICE_TIMEOUT_SEC_INITIAL", "5"))
+    device_timeout_sec_delta: int = int(os.getenv("DEVICE_TIMEOUT_SEC_DELTA", "5"))
+    device_timeout_sec_max: int = int(os.getenv("DEVICE_TIMEOUT_SEC_DELTA", "120"))
+    device_timeout_sec: int = device_timeout_sec_initial
+    cfg_device_url: str = os.getenv("DEVICE_URL")
+    cfg_device_udn: str = os.getenv("DEVICE_UDN")
+    cfg_device_name: str = os.getenv("DEVICE_NAME")
+    if not (cfg_device_url or cfg_device_udn or cfg_device_name):
+        # misconfiguration
+        print("Please specify one among DEVICE_URL, DEVICE_UDN or DEVICE_NAME!")
+        return None
     while True:
+        print(f"Current timeout is [{device_timeout_sec}] second(s)")
         device_url: str = None
-        device_timeout_sec: int = int(os.getenv("DEVICE_TIMEOUT_SEC", "60"))
-        print(f"Using timeout [{device_timeout_sec}] second(s)")
-        cfg_device_url: str = os.getenv("DEVICE_URL")
-        cfg_device_udn: str = os.getenv("DEVICE_UDN")
-        cfg_device_name: str = os.getenv("DEVICE_NAME")
         if cfg_device_url:
             print(f"Using specified device url [{cfg_device_url}]")
             device_url = cfg_device_url
@@ -683,8 +689,11 @@ async def async_main() -> None:
         # did we get the device_url?
         if not device_url:
             # raise Exception("We need a DEVICE_URL!")
+            if device_timeout_sec < device_timeout_sec_max:
+                device_timeout_sec += device_timeout_sec_delta
             print("Device not found, retrying ...")
         if device_url:
+            device_timeout_sec = device_timeout_sec_initial
             print(f"Selected device with URL [{device_url}] ...")
             try:
                 await subscribe(
