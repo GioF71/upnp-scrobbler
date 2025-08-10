@@ -20,7 +20,7 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [ ] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [ ] Scrobbling to libre.fm
 
 ## Build
@@ -43,8 +43,8 @@ Those will be needed for the configuration.
 NAME|DESCRIPTION
 :---|:---
 DEVICE_URL|Device URL of your UPnP Device, alternative to DEVICE_UDN and DEVICE_NAME (example: `http://192.168.1.7:49152/description.xml`)
-DEVICE_UDN|Device identifier, alternative to DEVICE_URL and DEVICE_NAME must match one device
-DEVICE_NAME|Device friendly name, alternative to DEVICE_URL and DEVICE_UDN must match one device
+DEVICE_UDN|Device identifier, alternative to DEVICE_URL and DEVICE_NAME (must match only one device)
+DEVICE_NAME|Device friendly name, alternative to DEVICE_URL and DEVICE_UDN (must match only one device)
 DEVICE_TIMEOUT_SEC_INITIAL|Int value, defaults to `5` seconds
 DEVICE_TIMEOUT_SEC_DELTA|Int value, defaults to `5` seconds
 DEVICE_TIMEOUT_SEC_MAX|Int value, defaults to `60` seconds
