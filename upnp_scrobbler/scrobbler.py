@@ -230,19 +230,27 @@ def do_update_now_playing(current_song: Song):
 
 def last_fm_now_playing(current_song: Song):
     network: pylast.LastFMNetwork = create_last_fm_network()
+    artist: str = get_first_artist(current_song.artist)
+    duration: int = int(current_song.duration) if current_song.duration else None
+    print(f"last_fm_now_playing for [{current_song.title}] from [{current_song.album}] by [{artist}] [{duration}] sec ...")
     network.update_now_playing(
-        artist=get_first_artist(current_song.artist),
+        artist=artist,
         title=current_song.title,
         album=current_song.album,
-        duration=int(current_song.duration) if current_song.duration else None)
+        duration=duration)
 
 
 def last_fm_scrobble(current_song: Song):
     network: pylast.LastFMNetwork = create_last_fm_network()
     unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
+    artist: str = get_first_artist(current_song.artist)
+    duration: int = int(current_song.duration) if current_song.duration else None
+    print(f"last_fm_scrobble for [{current_song.title}] from [{current_song.album}] by [{artist}] [{duration}] sec ...")
     network.scrobble(
-        artist=get_first_artist(current_song.artist),
+        artist=artist,
         title=current_song.title,
+        album=current_song.album,
+        duration=duration,
         timestamp=unix_timestamp)
 
 
