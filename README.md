@@ -121,6 +121,9 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-09-14|Improved logging during authentication
+2025-09-12|Trigger "Now playing" only if player state is actually playing
+2025-08-10|Code style improvements
 2025-08-09|Initial support for [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect)
 2025-08-09|Increasing timeouts
 2025-08-09|Fixed device search, would fail if first hit is not the expected one
