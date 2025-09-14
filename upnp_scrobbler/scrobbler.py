@@ -182,6 +182,8 @@ def create_last_fm_network_session_key(
     os.makedirs(name=session_key_dir, exist_ok=True)
     session_key_file_name = get_last_fm_session_key_file_name()
     network: pylast.LastFMNetwork = pylast.LastFMNetwork(last_fm_key, last_fm_secret)
+    # TODO can we allow to dump key and secret?
+    # print(f"Last.FM key [{last_fm_key}] secret [{last_fm_secret}]")
     session_key_file_exists: bool = os.path.exists(session_key_file_name)
     print(f"LAST.fm session file exists [{session_key_file_exists}] at path [{session_key_file_name}]")
     # can we validate the LAST.fm connection?
@@ -197,7 +199,16 @@ def create_last_fm_network_session_key(
                     print(f"Saving LAST.fm session file at path [{session_key_file_name}]")
                     f.write(session_key)
                 break
-            except pylast.WSError:
+            except pylast.WSError as ex:
+                if int(ex.get_id()) == 14:
+                    # dump the unexpected error
+                    # print(f"LAST.fm authorization failed [{type(ex)}] [{ex.get_id()}] [{ex}]")
+                    pass
+                else:
+                    print(f"LAST.fm authorization failed [{type(ex)}] id [{ex.get_id()}] [{ex}]")
+                time.sleep(1)
+            except Exception as genericEx:
+                print(f"LAST.fm authorization failed (generic exception) [{type(genericEx)}] [{genericEx}]")
                 time.sleep(1)
     else:
         session_key = open(session_key_file_name).read()
@@ -232,7 +243,10 @@ def last_fm_now_playing(current_song: Song):
     network: pylast.LastFMNetwork = create_last_fm_network()
     artist: str = get_first_artist(current_song.artist)
     duration: int = int(current_song.duration) if current_song.duration else None
-    print(f"last_fm_now_playing for [{current_song.title}] from [{current_song.album}] by [{artist}] [{duration}] sec ...")
+    print(f"last_fm_now_playing for [{current_song.title}] "
+          f"from [{current_song.album}] "
+          f"by [{artist}] "
+          f"[{duration}] sec ...")
     network.update_now_playing(
         artist=artist,
         title=current_song.title,
@@ -245,7 +259,10 @@ def last_fm_scrobble(current_song: Song):
     unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
     artist: str = get_first_artist(current_song.artist)
     duration: int = int(current_song.duration) if current_song.duration else None
-    print(f"last_fm_scrobble for [{current_song.title}] from [{current_song.album}] by [{artist}] [{duration}] sec ...")
+    print(f"last_fm_scrobble for [{current_song.title}] "
+          f"from [{current_song.album}] "
+          f"by [{artist}] "
+          f"[{duration}] sec ...")
     network.scrobble(
         artist=artist,
         title=current_song.title,
@@ -474,8 +491,13 @@ def on_valid_avtransport_event(
               f"metadata_is_new: [{metadata_is_new}] -> "
               f"[{song_to_string(incoming_metadata)}]")
         if metadata_is_new:
-            print(f"Arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}] ...")
-            todo_update_now_playing = True
+            is_playing: bool = g_player_state == PlayerState.PLAYING
+            if is_playing:
+                print(f"Arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}] ...")
+                todo_update_now_playing = True
+            else:
+                print(f"Not arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}], "
+                      f"but player state is [{g_player_state.value}] ...")
             # consider arming scrobbling
             if not empty_g_current_song:
                 # we can scrobble the g_current_song
