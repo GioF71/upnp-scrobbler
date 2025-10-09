@@ -2,6 +2,7 @@ import os
 import constants
 import dotenv
 import platformdirs
+from util import is_true
 
 
 def load_env_file(file_name: str):
@@ -9,10 +10,20 @@ def load_env_file(file_name: str):
         dotenv.load_dotenv(dotenv_path=file_name)
 
 
+def get_config(config_param: constants.ConfigParam) -> str:
+    key_list: list[str] = config_param.key
+    key: str
+    for key in key_list:
+        v: any = os.getenv(key)
+        if v:
+            return v
+    return config_param.default_value
+
+
 def get_bool_config(env_key: str, default_value: bool) -> bool:
     cfg: str = os.getenv(env_key)
     if not cfg: return default_value
-    return cfg.upper() == 'Y' or cfg.upper() == 'YES'
+    return is_true(cfg)
 
 
 def get_dump_upnp_data() -> bool:
@@ -50,11 +61,19 @@ def get_enable_now_playing() -> bool:
         default_value=constants.DEFAULT_ENABLE_NOW_PLAYING)
 
 
-def get_lastfm_config_dir() -> str:
-    p = os.path.join(get_app_config_dir(), constants.Constants.LAST_FM.value)
+def get_config_section_dir(config_subdir: str) -> str:
+    p = os.path.join(get_app_config_dir(), config_subdir)
     if not os.path.exists(p):
         os.makedirs(p, exist_ok=True)
     return p
+
+
+def get_lastfm_config_dir() -> str:
+    return get_config_section_dir(constants.Constants.LAST_FM_CONFIG_DIR_NAME.value)
+
+
+def get_subsonic_config_dir() -> str:
+    return get_config_section_dir(constants.Constants.SUBSONIC_CONFIG_DIR_NAME.value)
 
 
 def get_app_config_dir() -> str:

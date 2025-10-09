@@ -1,7 +1,8 @@
-xmltodict
-requests
-python-didl-lite
-async-upnp-client
-pylast
-python-dotenv
-platformdirs
+xmltodict==1.0.2
+requests==2.32.5
+python-didl-lite==1.4.1
+async-upnp-client==0.45.0
+pylast==5.4.0
+python-dotenv==1.1.1
+platformdirs==4.4.0
+subsonic-connector==0.3.9

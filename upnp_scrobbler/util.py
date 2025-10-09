@@ -44,3 +44,12 @@ def duration_str_to_sec(duration: str) -> float:
                      float(int(hours_str) * 3600.0))
     # print(f"duration_str_to_sec [{duration}] -> [{result}] (sec)")
     return result
+
+
+def is_true(str_value: str | None) -> bool:
+    if (str_value and (str_value.lower() == "true"
+                       or str_value == "1"
+                       or str_value.lower() == "y"
+                       or str_value.lower() == "yes")):
+        return True
+    return False

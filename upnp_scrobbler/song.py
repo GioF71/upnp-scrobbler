@@ -83,6 +83,8 @@ class Song:
 
 
 def same_song(left: Song, right: Song) -> bool:
+    if (left and not right) or (right and not left):
+        return False
     return (left.album == right.album and
             left.artist == right.artist and
             left.duration == right.duration and

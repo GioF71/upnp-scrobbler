@@ -3,19 +3,22 @@ from enum import Enum
 
 class Constants(Enum):
     APP_NAME = "upnp-scrobbler"
-    LAST_FM = "last.fm"
+    LAST_FM_CONFIG_DIR_NAME = "last.fm"
+    SUBSONIC_CONFIG_DIR_NAME = "subsonic"
     LAST_FM_SESSION_KEY = "last_fm_session_key"
     LAST_FM_CONFIG = "last_fm_config.env"
+    SUBSONIC_SERVER = "subsonic.server.env"
+    SUBSONIC_CREDENTIALS = "subsonic.credentials.env"
 
 
 class _ConfigParamData:
 
-    def __init__(self, key: str, default_value: any):
-        self.__key: str = key
+    def __init__(self, key: list[str], default_value: any = None):
+        self.__key: list[str] = key
         self.__default_value: any = default_value
 
     @property
-    def key(self) -> str:
+    def key(self) -> list[str]:
         return self.__key
 
     @property
@@ -24,7 +27,20 @@ class _ConfigParamData:
 
 
 class ConfigParam(Enum):
-    pass
+    SUBSONIC_BASE_URL = _ConfigParamData(key=["SUBSONIC_BASE_URL"])
+    SUBSONIC_PORT = _ConfigParamData(key=["SUBSONIC_PORT"])
+    SUBSONIC_USERNAME = _ConfigParamData(key=["SUBSONIC_USERNAME", "SUBSONIC_USER"])
+    SUBSONIC_PASSWORD = _ConfigParamData(key=["SUBSONIC_PASSWORD"])
+    SUBSONIC_LEGACY_AUTH = _ConfigParamData(key=["SUBSONIC_LEGACY_AUTH", "SUBSONIC_LEGACYAUTH"], default_value=False)
+    SUBSONIC_SERVER_PATH = _ConfigParamData(key=["SUBSONIC_SERVER_PATH"], default_value="")
+
+    @property
+    def key(self) -> list[str]:
+        return self.value.key
+
+    @property
+    def default_value(self) -> any:
+        return self.value.default_value
 
 
 DEFAULT_DURATION_THRESHOLD: int = 240

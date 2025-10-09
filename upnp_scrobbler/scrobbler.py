@@ -11,6 +11,8 @@ import datetime
 import pylast
 import socket
 import webbrowser
+import random
+import string
 
 from typing import Optional, Sequence, Callable
 
@@ -25,11 +27,18 @@ from async_upnp_client.const import DeviceInfo
 from song import Song, copy_song, same_song
 from player_state import PlayerState, get_player_state
 from util import duration_str_to_sec
+
 from event_name import EventName
 
 import config
 import constants
 import scanner
+from subsonic import ScrobblerSubsonicConfiguration
+from subsonic import get_subsonic_config
+from subsonic import get_song_id as get_subsonic_song_id
+from subsonic import get_song_by_id as get_subsonic_song_by_id
+from subsonic import scrobble_song as scrobble_subsonic_song
+from subsonic_connector.song import Song as SubsonicSong
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
@@ -128,6 +137,7 @@ def execute_scrobble(current_song: Song) -> bool:
               f"over_threshold [{over_threshold}] "
               f"over_half [{over_half}]")
         last_fm_scrobble(current_song=current_song)
+        subsonic_scrobble(current_song=current_song)
         print(f"Scrobble success for [{song_to_short_string(current_song)}]")
         return True
     else:
@@ -169,7 +179,7 @@ def create_last_fm_network() -> pylast.LastFMNetwork:
 def get_last_fm_session_key_file_name() -> str:
     return os.path.join(
         config.get_app_config_dir(),
-        constants.Constants.LAST_FM.value,
+        constants.Constants.LAST_FM_CONFIG_DIR_NAME.value,
         constants.Constants.LAST_FM_SESSION_KEY.value)
 
 
@@ -178,7 +188,7 @@ def create_last_fm_network_session_key(
         last_fm_secret: str) -> pylast.LastFMNetwork:
     session_key_dir = os.path.join(
         config.get_app_config_dir(),
-        constants.Constants.LAST_FM.value)
+        constants.Constants.LAST_FM_CONFIG_DIR_NAME.value)
     os.makedirs(name=session_key_dir, exist_ok=True)
     session_key_file_name = get_last_fm_session_key_file_name()
     network: pylast.LastFMNetwork = pylast.LastFMNetwork(last_fm_key, last_fm_secret)
@@ -203,6 +213,7 @@ def create_last_fm_network_session_key(
                 if int(ex.get_id()) == 14:
                     # dump the unexpected error
                     # print(f"LAST.fm authorization failed [{type(ex)}] [{ex.get_id()}] [{ex}]")
+                    # keep going!
                     pass
                 else:
                     print(f"LAST.fm authorization failed [{type(ex)}] id [{ex.get_id()}] [{ex}]")
@@ -271,6 +282,36 @@ def last_fm_scrobble(current_song: Song):
         timestamp=unix_timestamp)
 
 
+def subsonic_scrobble(current_song: Song):
+    config: ScrobblerSubsonicConfiguration = get_subsonic_config()
+    if not config:
+        return
+    if (current_song.av_transport_uri is None and
+            current_song.track_uri is None):
+        print("subsonic_scrobble no uri is available for song.")
+        return
+    uri: str = current_song.av_transport_uri if current_song.av_transport_uri else current_song.track_uri
+    subsonic_song_id: str = get_subsonic_song_id(uri=uri, config=config)
+    if not subsonic_song_id:
+        print(f"subsonic_scrobble cannot get a song_id for uri [{uri}]")
+        return
+    subsonic_song: SubsonicSong = (get_subsonic_song_by_id(
+                                   song_id=subsonic_song_id,
+                                   config=config)
+                                   if subsonic_song_id else None)
+    if not subsonic_song:
+        print(f"subsonic_scrobble cannot get a song for song_id [{subsonic_song_id}]")
+        return
+    # song title must match
+    if subsonic_song.getTitle() == current_song.title:
+        # we have a match, go for the scrobble.
+        scrobble_subsonic_song(song=subsonic_song, config=config)
+        print(f"subsonic_scrobble scrobbled song_id [{subsonic_song_id}]")
+    else:
+        print(f"subsonic_scrobble found wrong song for [{subsonic_song_id}]: "
+              f"title is [{subsonic_song.getTitle()}], should be [{current_song.title}]")
+
+
 def get_first_artist(artist: str) -> str:
     if not artist: return None
     artist_list: list[str] = artist.split(",")
@@ -329,17 +370,17 @@ def get_items(event_name: str, event_value: any) -> any:
     try:
         parsed = xmltodict.parse(event_value)
     except Exception as ex:
-        print(f"on_avtransport_event parse failed due to [{type(ex)}] [{ex}]")
+        print(f"get_items parse failed due to [{type(ex)}] [{ex}]")
         return None
     didl_lite = parsed[item_path[0]] if item_path[0] in parsed else dict()
     p_items = didl_lite[item_path[1]] if item_path[1] in didl_lite else None
     if p_items is None:
-        msg: str = f"Event [{event_name}] -> no data."
+        msg: str = f"get_items event [{event_name}] -> no data."
         print(msg)
         raise Exception(msg)
     if config.get_dump_upnp_data():
         # Print the entire mess
-        print(json.dumps(p_items, indent=4))
+        print(f"get_items event_name [{event_name}] data:[{json.dumps(p_items, indent=4)}]")
     return p_items
 
 
@@ -367,13 +408,13 @@ def get_new_metadata(sv_dict: dict[str, any]) -> Song:
         metadata_key = EventName.CURRENT_TRACK_META_DATA.value
     elif has_av_transport_uri_meta_data:
         metadata_key = EventName.AV_TRANSPORT_URI_META_DATA.value
-    print(f"Metadata available: [{metadata_key is not None}]")
+    print(f"get_new_metadata metadata available: [{metadata_key is not None}]")
     incoming_metadata: Song = None
     if metadata_key:
         g_items = get_items(metadata_key, sv_dict[metadata_key])
         incoming_metadata = metadata_to_new_current_song(g_items) if g_items else None
         if incoming_metadata is None or incoming_metadata.is_empty():
-            print("Incoming incoming_metadata is missing or empty!")
+            print("get_new_metadata incoming_metadata is missing or empty!")
             incoming_metadata = None
         return incoming_metadata if incoming_metadata else None
 
@@ -431,10 +472,10 @@ def get_current_player_state(sv_dict: dict[str, any]) -> PlayerState:
     # first, we try TRANSPORT_STATE
     result: PlayerState = PlayerState.UNKNOWN
     if EventName.TRANSPORT_STATE.value in sv_dict:
-        print(f"Trying to get PlayerState from [{EventName.TRANSPORT_STATE.value}] ...")
+        print(f"get_current_player_state trying to get PlayerState from [{EventName.TRANSPORT_STATE.value}] ...")
         result = get_player_state_from_transport_state(sv_dict)
     elif EventName.LAST_CHANGE.value in sv_dict:
-        print(f"Trying to get PlayerState from [{EventName.LAST_CHANGE.value}] ...")
+        print(f"get_current_player_state trying to get PlayerState from [{EventName.LAST_CHANGE.value}] ...")
         transport_state: str = get_player_state_from_last_change(sv_dict[EventName.LAST_CHANGE.value])
         if transport_state:
             result = get_player_state(transport_state)
@@ -449,92 +490,114 @@ def on_valid_avtransport_event(
     global g_current_song
     global g_previous_song
     global g_last_scrobbled
+    event_id_length: int = 8
+    event_id = ''.join(random.choices(string.ascii_letters + string.digits, k=event_id_length))
     sv_dict: dict[str, any] = service_variables_by_name(service_variables)
-    print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
+    print(f"on_valid_avtransport_event [{event_id}] keys [{sv_dict.keys()}]")
     # must have transport state
     previous_player_state: PlayerState = g_player_state
     # see if we have a new player state
     curr_player_state: PlayerState = get_current_player_state(sv_dict)
+    # player_state_changed: bool = curr_player_state != previous_player_state
     g_player_state = (curr_player_state
                       if curr_player_state and curr_player_state != PlayerState.UNKNOWN
                       else g_player_state)
-    print(f"Player state [{display_player_state(previous_player_state)}] -> "
-          f"[{display_player_state(g_player_state)}]")
+    was_playing: bool = previous_player_state == PlayerState.PLAYING
+    playback_just_stated: bool = (curr_player_state == PlayerState.PLAYING and
+                                  previous_player_state != PlayerState.PLAYING)
+    print(f"on_valid_avtransport_event [{event_id}] Player state [{display_player_state(previous_player_state)}] -> "
+          f"[{display_player_state(g_player_state)}] "
+          f"-> playback just started [{playback_just_stated}], "
+          f"was playing [{was_playing}]")
     # get current track uri
     track_uri: str = (sv_dict[EventName.CURRENT_TRACK_URI.value]
                       if EventName.CURRENT_TRACK_URI.value in sv_dict
                       else None)
-    if track_uri:
-        print(f"Track URI = [{track_uri}]")
     # get av transport uri
     av_transport_uri: str = (sv_dict[EventName.AV_TRANSPORT_URI.value]
                              if EventName.AV_TRANSPORT_URI.value in sv_dict
                              else None)
-    if av_transport_uri:
-        print(f"AV Transport URI = [{av_transport_uri}]")
+    print(f"on_valid_avtransport_event [{event_id}] track_uri [{track_uri}] "
+          f"av_transport_uri [{av_transport_uri}]")
     # get metadata
     incoming_metadata: Song = get_new_metadata(sv_dict)
     metadata_is_new: bool = False
     todo_update_now_playing: bool = False
     todo_scrobble: bool = False
+    song_to_be_notified: Song = None
     song_to_be_scrobbled: Song = None
+    if incoming_metadata and track_uri:
+        incoming_metadata.track_uri = track_uri
+    if incoming_metadata and av_transport_uri:
+        incoming_metadata.av_transport_uri = av_transport_uri
+    metadata_is_new = ((incoming_metadata is not None) and
+                       (g_current_song is None or not same_song(g_current_song, incoming_metadata)))
     if incoming_metadata:
-        if track_uri:
-            incoming_metadata.track_uri = track_uri
-        if av_transport_uri:
-            incoming_metadata.av_transport_uri = av_transport_uri
-        empty_g_current_song: bool = g_current_song is None
-        metadata_is_new = ((incoming_metadata is not None) and
-                           (g_current_song is None or not same_song(g_current_song, incoming_metadata)))
-        print(f"incoming_metadata: "
-              f"empty g_current_song: [{empty_g_current_song}] "
+        print(f"on_valid_avtransport_event [{event_id}] incoming_metadata: "
+              f"empty g_current_song: [{g_current_song is None}] "
+              f"track_uri: [{track_uri}] "
+              f"av_transport_uri: [{av_transport_uri}] "
               f"metadata_is_new: [{metadata_is_new}] -> "
               f"[{song_to_string(incoming_metadata)}]")
-        if metadata_is_new:
-            is_playing: bool = g_player_state == PlayerState.PLAYING
-            if is_playing:
-                print(f"Arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}] ...")
-                todo_update_now_playing = True
-            else:
-                print(f"Not arming Now Playing because metadata_is_new [{song_to_string(incoming_metadata)}], "
-                      f"but player state is [{g_player_state.value}] ...")
-            # consider arming scrobbling
-            if not empty_g_current_song:
-                # we can scrobble the g_current_song
-                print(f"Arming Scrobble because g_current_song not is empty [{song_to_string(g_current_song)}] ...")
-                todo_scrobble = True
-                song_to_be_scrobbled = copy_song(g_current_song)
-            else:
-                print("NOT arming scrobble because g_current_song is empty")
-        else:
-            print(f"Not arming Now Playing because metadata_is_new is [{metadata_is_new}]")
-        # store g_current_song if not the same ...
-        if empty_g_current_song or not same_song(g_current_song, incoming_metadata):
-            print(f"Setting g_previous_song to [{song_to_short_string(incoming_metadata)}] ...")
-            previous_song: Song = copy_song(g_current_song) if g_current_song else None
-            g_current_song = copy_song(incoming_metadata)
-            if previous_song:
-                print(f"Setting g_previous_song to [{song_to_short_string(previous_song)}] ...")
-                # update g_previous_song and g_current_song
-                g_previous_song = copy_song(previous_song)
+    is_playing: bool = g_player_state == PlayerState.PLAYING
+    if is_playing:
+        print(f"on_valid_avtransport_event [{event_id}] arming Now Playing "
+              f"because metadata_is_new [{metadata_is_new}] ...")
+        todo_update_now_playing = True
+        song_to_be_notified = (incoming_metadata if incoming_metadata
+                               else g_current_song if g_current_song
+                               else g_previous_song)
+        if song_to_be_notified is None:
+            print(f"on_valid_avtransport_event [{event_id}] WARN we lost track of what is playing...")
     else:
-        print("Incoming incoming_metadata is None")
+        print(f"on_valid_avtransport_event [{event_id}] not arming Now Playing because "
+              f"player state is [{g_player_state.value}] (so not playing) ...")
+    # consider arming scrobbling
+    if g_current_song is not None:
+        # we can scrobble the g_current_song
+        print(f"on_valid_avtransport_event [{event_id}] arming Scrobble "
+              f"because g_current_song is not empty [{song_to_string(g_current_song)}] ...")
+        todo_scrobble = True
+        song_to_be_scrobbled = copy_song(g_current_song)
+    else:
+        print(f"on_valid_avtransport_event [{event_id}] not arming scrobble because g_current_song is empty")
+    # store g_current_song if not the same ...
+    if g_current_song is None or not same_song(g_current_song, incoming_metadata):
+        previous_song: Song = None
+        if incoming_metadata:
+            print(f"on_valid_avtransport_event [{event_id}] updating "
+                  f"g_previous_song to [{song_to_short_string(incoming_metadata)}] ...")
+            previous_song = copy_song(g_current_song) if g_current_song else None
+            g_current_song = copy_song(incoming_metadata) if incoming_metadata else None
+        if previous_song:
+            print(f"on_valid_avtransport_event [{event_id}] setting "
+                  f"g_previous_song to [{song_to_short_string(previous_song)}] ...")
+            # update g_previous_song and g_current_song
+            g_previous_song = copy_song(previous_song)
     # examing states
     if PlayerState.PLAYING.value == g_player_state.value:
         if (not todo_scrobble) and (metadata_is_new and incoming_metadata and g_previous_song):
-            print(f"Arming scrobble of previous_song [{song_to_string(g_previous_song)}] "
+            print(f"on_valid_avtransport_event [{event_id}] arming scrobble of previous_song "
+                  f"[{song_to_string(g_previous_song)}] "
                   f"while handling [{PlayerState.PLAYING.value}] ...")
             todo_scrobble = True
             song_to_be_scrobbled = copy_song(g_previous_song)
     elif PlayerState.STOPPED.value == g_player_state.value:
         if not todo_scrobble and g_current_song is not None:
-            print(f"Arming scrobble of current song [{song_to_string(g_current_song)}] "
-                  f"because of the {PlayerState.STOPPED.value} state ...")
-            todo_scrobble = True
-            song_to_be_scrobbled = copy_song(g_current_song)
+            # as it is now stopped, we can scrobble only if it "was playing"
+            if was_playing:
+                print(f"on_valid_avtransport_event [{event_id}] "
+                      f"arming scrobble of current song [{song_to_string(g_current_song)}] "
+                      f"because of the {PlayerState.STOPPED.value} state ...")
+                todo_scrobble = True
+                song_to_be_scrobbled = copy_song(g_current_song)
     # Execute armed actions
     if todo_update_now_playing:
-        on_playing(incoming_metadata)
+        if song_to_be_notified:
+            on_playing(song=song_to_be_notified)
+        else:
+            print(f"on_valid_avtransport_event [{event_id}] "
+                  "now playing was armed but song_to_be_notified is not set")
     if todo_scrobble:
         maybe_scrobble(current_song=song_to_be_scrobbled)
 
@@ -763,7 +826,14 @@ def main() -> None:
     last_fm_config_dir: str = config.get_lastfm_config_dir()
     if os.path.exists(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value)):
         config.load_env_file(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value))
-    # early initializtion of last.fm network
+    subsonic_config_dir: str = config.get_subsonic_config_dir()
+    if os.path.exists(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_SERVER.value)):
+        config.load_env_file(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_SERVER.value))
+    if os.path.exists(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_CREDENTIALS.value)):
+        config.load_env_file(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_CREDENTIALS.value))
+    subsonic_configuration: ScrobblerSubsonicConfiguration = get_subsonic_config()
+    print(f"Subsonic is configured: [{subsonic_configuration is not None}]")
+    # early initialization of last.fm network
     create_last_fm_network()
     host_ip: str = get_ip()
     print(f"Running on [{host_ip}]")
