@@ -17,6 +17,19 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
             "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: subsonic test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/subsonic_test.py",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/upnp_scrobbler:${env:PYTHONPATH}"
+            },
+            "justMyCode": false
         }
     ]
 }

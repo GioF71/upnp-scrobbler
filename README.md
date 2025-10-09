@@ -1,6 +1,7 @@
 # UPnP Scrobbler
 
-A simple LAST.fm scrobbler for WiiM devices.
+A simple LAST.fm scrobbler for WiiM devices.  
+It can now also scrobble to a subsonic server.  
 
 ## References
 
@@ -8,6 +9,7 @@ I started taking the code published in [this post](https://forum.wiimhome.com/th
 It seems that I cannot get a valid link to the user profile on that board, but anyway the nickname is `cc_rider`.  
 A big thank you goes to him/her for the code he/she shared.  
 I then used [pylast](https://github.com/pylast/pylast), as suggested in that thread, for the actual operations on [last.fm](https://www.last.fm/).  
+I also use [subsonic-connector](https://github.com/GioF71/subsonic-connector) for subsonic scrobbling.  
 
 ## Links
 
@@ -21,6 +23,8 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
 - [x] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling to a subsonic server
+- [ ] Allow multiple subsonic servers
 - [ ] Scrobbling to libre.fm
 
 ## Build
@@ -82,7 +86,32 @@ LAST_FM_PASSWORD=xxxx
 LAST_FM_PASSWORD_HASH=xxxx
 ```
 
-See [this section](#configuration-directory) for information about the path for the `<config-directory>` expression.  
+#### Subsonic Configuration files
+
+Subsonic related variables should be save in files inside the `<config-directory>` volume, exacly at `<config-directory>/upnp-scrobbler/subsonic/subsonic.server.env`, and optionally `<config-directory>/upnp-scrobbler/subsonic/subsonic.credentials.env` (if you want to separate credentials). Example for both files:  
+
+```text
+SUBSONIC_BASE_URL=https://your-subsonic-server.your-domain.com
+# legacy auth
+SUBSONIC_LEGACY_AUTH=true
+# there is an alias available for variable name SUBSONIC_LEGACYAUTH (it's named this way in upmpdcli)
+# SUBSONIC_LEGACYAUTH=true
+# optional port, by default it will be `443` if the base url starts with `https`, otherwise `80`
+SUBSONIC_PORT=443
+# optional server path
+# SUBSONIC_SERVER_PATH=server-path
+```
+
+and:
+
+```text
+SUBSONIC_USERNAME=your-username
+# there is an alias available for variable name SUBSONIC_USER (it's named this way in upmpdcli)
+# SUBSONIC_USER=your-username
+SUBSONIC_PASSWORD=your-password
+```
+
+You can collapse all the variables in one file, but its name must be `subsonic.server.env`.  
 
 ### LAST.fm authentication
 
