@@ -150,6 +150,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-10-10|Don't assume LAST.fm is configured (see [#12](https://github.com/GioF71/upnp-scrobbler/issues/12))
 2025-09-14|Improved logging during authentication
 2025-09-12|Trigger "Now playing" only if player state is actually playing
 2025-08-10|Code style improvements

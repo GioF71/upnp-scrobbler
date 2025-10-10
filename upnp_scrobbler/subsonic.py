@@ -52,7 +52,7 @@ def get_song_id(uri: str, config: ScrobblerSubsonicConfiguration) -> str | None:
     parsed_url = urlparse(uri)
     host: str = f"{parsed_url.scheme}://{parsed_url.hostname}:{parsed_url.port}"
     config_port: int = (config.port if config.port is not None else
-                        (443 if config.base_url.startswith("https") else 80))
+                        (443 if config.base_url.lower().startswith("https") else 80))
     cmp_host: str = f"{config.base_url}:{config_port}"
     if host == cmp_host:
         # it's a subsonic server url
@@ -74,4 +74,3 @@ def get_song_id(uri: str, config: ScrobblerSubsonicConfiguration) -> str | None:
             print("Not an upmpdcli url, bailing out.")
             return None
         return right
-    return None

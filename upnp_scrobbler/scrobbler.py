@@ -87,7 +87,7 @@ def song_to_short_string(song: Song) -> str:
     if song:
         return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
                 f"TrackUri set [{song.track_uri is not None}] "
-                f"AvTransportUri set [{song.av_transport_uri is not None}] ")
+                f"AvTransportUri set [{song.av_transport_uri is not None}]")
     else:
         return "<NO_DATA>"
 
@@ -136,9 +136,19 @@ def execute_scrobble(current_song: Song) -> bool:
               f"threshold [{config.get_duration_threshold()}] "
               f"over_threshold [{over_threshold}] "
               f"over_half [{over_half}]")
-        last_fm_scrobble(current_song=current_song)
-        subsonic_scrobble(current_song=current_song)
-        print(f"Scrobble success for [{song_to_short_string(current_song)}]")
+        scrobble_provider_count: int = 0
+        if config.is_last_fm_configured():
+            last_fm_scrobble(current_song=current_song)
+            scrobble_provider_count += 1
+        else:
+            print("execute_scrobble not scrobbling to LAST.fm because it is not configured")
+        if get_subsonic_config():
+            subsonic_scrobble(current_song=current_song)
+            scrobble_provider_count += 1
+        else:
+            print("execute_scrobble not scrobbling to subsonic because there are no configured servers")
+        print(f"Scrobble success (provider count=[{scrobble_provider_count}]) "
+              f"for [{song_to_short_string(current_song)}]")
         return True
     else:
         print(f"execute_scrobble cannot scrobble [{current_song.title}] "
@@ -153,6 +163,9 @@ def execute_scrobble(current_song: Song) -> bool:
 
 
 def create_last_fm_network() -> pylast.LastFMNetwork:
+    if not config.is_last_fm_configured():
+        print("create_last_fm_network LAST.fm is not configured")
+        return None
     last_fm_key: str = os.getenv("LAST_FM_API_KEY")
     last_fm_secret: str = os.getenv("LAST_FM_SHARED_SECRET")
     last_fm_username: str = os.getenv("LAST_FM_USERNAME")
@@ -247,10 +260,16 @@ def create_last_fm_network_legacy(
 
 
 def do_update_now_playing(current_song: Song):
-    last_fm_now_playing(current_song)
+    if config.is_last_fm_configured():
+        last_fm_now_playing(current_song)
+    else:
+        print("do_update_now_playing not updating now playing on LAST.fm because it not configured")
 
 
 def last_fm_now_playing(current_song: Song):
+    if not config.is_last_fm_configured():
+        print("last_fm_now_playing cannot update now playing on LAST.fm because it is not configured")
+        return
     network: pylast.LastFMNetwork = create_last_fm_network()
     artist: str = get_first_artist(current_song.artist)
     duration: int = int(current_song.duration) if current_song.duration else None
@@ -266,6 +285,9 @@ def last_fm_now_playing(current_song: Song):
 
 
 def last_fm_scrobble(current_song: Song):
+    if not config.is_last_fm_configured():
+        print("last_fm_scrobble: cannot scrobble because LAST.fm is not configured")
+        return
     network: pylast.LastFMNetwork = create_last_fm_network()
     unix_timestamp: int = int(time.mktime(datetime.datetime.now().timetuple()))
     artist: str = get_first_artist(current_song.artist)
@@ -834,7 +856,10 @@ def main() -> None:
     subsonic_configuration: ScrobblerSubsonicConfiguration = get_subsonic_config()
     print(f"Subsonic is configured: [{subsonic_configuration is not None}]")
     # early initialization of last.fm network
-    create_last_fm_network()
+    if config.is_last_fm_configured():
+        create_last_fm_network()
+    else:
+        print("LAST.fm is not configured.")
     host_ip: str = get_ip()
     print(f"Running on [{host_ip}]")
     print(f"Now Playing enabled: [{config.get_enable_now_playing()}]")

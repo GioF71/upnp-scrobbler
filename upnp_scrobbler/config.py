@@ -20,6 +20,12 @@ def get_config(config_param: constants.ConfigParam) -> str:
     return config_param.default_value
 
 
+def is_last_fm_configured() -> bool:
+    last_fm_key: str = os.getenv("LAST_FM_API_KEY")
+    last_fm_secret: str = os.getenv("LAST_FM_SHARED_SECRET")
+    return last_fm_key is not None and last_fm_secret is not None
+
+
 def get_bool_config(env_key: str, default_value: bool) -> bool:
     cfg: str = os.getenv(env_key)
     if not cfg: return default_value
