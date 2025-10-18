@@ -22,7 +22,7 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 
 - [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [x] Scrobbling to last.fm from gmrenderer-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling to last.fm from gmrender-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [x] Scrobbling to a subsonic server
 - [ ] Allow multiple subsonic servers
 - [ ] Scrobbling to libre.fm
