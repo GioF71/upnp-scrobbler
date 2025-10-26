@@ -31,10 +31,15 @@ def get_subsonic_config() -> ScrobblerSubsonicConfiguration | None:
         legacy_auth=legacy_auth)
 
 
-def scrobble_song(song: SubsonicSong, config: ScrobblerSubsonicConfiguration):
+def scrobble_song(
+        song: SubsonicSong,
+        config: ScrobblerSubsonicConfiguration,
+        submission: bool = True):
     subsonic_config: SubsonicConnectorConfiguration = SubsonicConnectorConfiguration(cfg=config)
     cn: SubsonicConnector = SubsonicConnector(configuration=subsonic_config)
-    cn.scrobble(song_id=song.getId())
+    cn.scrobble(
+        song_id=song.getId(),
+        submission=submission)
 
 
 def get_song_by_id(song_id: str, config: ScrobblerSubsonicConfiguration) -> SubsonicSong:

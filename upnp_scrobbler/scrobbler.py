@@ -138,12 +138,15 @@ def execute_scrobble(current_song: Song) -> bool:
               f"over_half [{over_half}]")
         scrobble_provider_count: int = 0
         if config.is_last_fm_configured():
-            last_fm_scrobble(current_song=current_song)
+            last_fm_scrobble(
+                current_song=current_song)
             scrobble_provider_count += 1
         else:
             print("execute_scrobble not scrobbling to LAST.fm because it is not configured")
         if get_subsonic_config():
-            subsonic_scrobble(current_song=current_song)
+            subsonic_scrobble(
+                current_song=current_song,
+                submission=True)
             scrobble_provider_count += 1
         else:
             print("execute_scrobble not scrobbling to subsonic because there are no configured servers")
@@ -264,6 +267,10 @@ def do_update_now_playing(current_song: Song):
         last_fm_now_playing(current_song)
     else:
         print("do_update_now_playing not updating now playing on LAST.fm because it not configured")
+    if get_subsonic_config():
+        subsonic_scrobble(
+            current_song=current_song,
+            submission=False)
 
 
 def last_fm_now_playing(current_song: Song):
@@ -304,7 +311,7 @@ def last_fm_scrobble(current_song: Song):
         timestamp=unix_timestamp)
 
 
-def subsonic_scrobble(current_song: Song):
+def subsonic_scrobble(current_song: Song, submission: bool = True):
     config: ScrobblerSubsonicConfiguration = get_subsonic_config()
     if not config:
         return
@@ -327,8 +334,12 @@ def subsonic_scrobble(current_song: Song):
     # song title must match
     if subsonic_song.getTitle() == current_song.title:
         # we have a match, go for the scrobble.
-        scrobble_subsonic_song(song=subsonic_song, config=config)
-        print(f"subsonic_scrobble scrobbled song_id [{subsonic_song_id}]")
+        scrobble_subsonic_song(
+            song=subsonic_song,
+            config=config,
+            submission=submission)
+        print(f"subsonic_scrobble scrobbled song_id [{subsonic_song_id}] "
+              f"mode [{'Scrobble' if submission else 'Now Playing'}]")
     else:
         print(f"subsonic_scrobble found wrong song for [{subsonic_song_id}]: "
               f"title is [{subsonic_song.getTitle()}], should be [{current_song.title}]")

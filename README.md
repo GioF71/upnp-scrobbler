@@ -24,7 +24,7 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 - [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
 - [x] Scrobbling to last.fm from gmrender-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
 - [x] Scrobbling to a subsonic server
-- [ ] Enable "now playing" for subsonic
+- [x] Enable "now playing" for subsonic
 - [ ] Allow multiple subsonic servers
 - [ ] Scrobbling to listenbrainz
 - [ ] Scrobbling to libre.fm
@@ -152,6 +152,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-10-26|Add support for "Now Playing" on subsonic (see [#14](https://github.com/GioF71/upnp-scrobbler/issues/14))
 2025-10-10|Don't assume LAST.fm is configured (see [#12](https://github.com/GioF71/upnp-scrobbler/issues/12))
 2025-09-14|Improved logging during authentication
 2025-09-12|Trigger "Now playing" only if player state is actually playing
