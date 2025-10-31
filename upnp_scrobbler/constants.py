@@ -1,14 +1,20 @@
 from enum import Enum
 
 
+class SubsonicConfigFileType(Enum):
+    SERVER = "server"
+    CREDENTIALS = "credentials"
+    ADDITIONAL = "additional"
+
+
 class Constants(Enum):
     APP_NAME = "upnp-scrobbler"
     LAST_FM_CONFIG_DIR_NAME = "last.fm"
     SUBSONIC_CONFIG_DIR_NAME = "subsonic"
     LAST_FM_SESSION_KEY = "last_fm_session_key"
     LAST_FM_CONFIG = "last_fm_config.env"
-    SUBSONIC_SERVER = "subsonic.server.env"
-    SUBSONIC_CREDENTIALS = "subsonic.credentials.env"
+    SUBSONIC_SERVER = f"subsonic.{SubsonicConfigFileType.SERVER.value}.env"
+    SUBSONIC_CREDENTIALS = f"subsonic.{SubsonicConfigFileType.CREDENTIALS.value}.env"
 
 
 class _ConfigParamData:
@@ -33,6 +39,8 @@ class ConfigParam(Enum):
     SUBSONIC_PASSWORD = _ConfigParamData(key=["SUBSONIC_PASSWORD"])
     SUBSONIC_LEGACY_AUTH = _ConfigParamData(key=["SUBSONIC_LEGACY_AUTH", "SUBSONIC_LEGACYAUTH"], default_value=False)
     SUBSONIC_SERVER_PATH = _ConfigParamData(key=["SUBSONIC_SERVER_PATH"], default_value="")
+    SUBSONIC_ENABLE_NOW_PLAYING = _ConfigParamData(key=["SUBSONIC_ENABLE_NOW_PLAYING"], default_value=True)
+    SUBSONIC_ENABLE_SONG_MATCH = _ConfigParamData(key=["SUBSONIC_ENABLE_SONG_MATCH"], default_value=True)
 
     @property
     def key(self) -> list[str]:

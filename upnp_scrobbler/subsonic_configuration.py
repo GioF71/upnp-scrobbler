@@ -5,18 +5,28 @@ class ScrobblerSubsonicConfiguration:
 
     def __init__(
             self,
+            subsonic_key: str,
             base_url: str,
             port: int,
             username: str,
             password: str,
-            server_path: str = None,
-            legacy_auth: bool = False):
+            server_path: str,
+            legacy_auth: bool,
+            enable_now_playing: bool,
+            allow_match: bool):
+        self.__subsonic_key: str = subsonic_key
         self.__base_url: str = base_url
         self.__port: int = port
         self.__username: str = username
         self.__password: str = password
         self.__server_path: str = server_path
         self.__legacy_auth: bool = legacy_auth
+        self.__enable_now_playing: bool = enable_now_playing
+        self.__allow_match: bool = allow_match
+
+    @property
+    def subsonic_key(self) -> str:
+        return self.__subsonic_key
 
     @property
     def base_url(self) -> str:
@@ -41,6 +51,14 @@ class ScrobblerSubsonicConfiguration:
     @property
     def legacy_auth(self) -> bool:
         return self.__legacy_auth
+
+    @property
+    def enable_now_playing(self) -> bool:
+        return self.__enable_now_playing
+
+    @property
+    def allow_match(self) -> bool:
+        return self.__allow_match
 
 
 class SubsonicConnectorConfiguration(SubsonicConnectorConfigurationInterface):

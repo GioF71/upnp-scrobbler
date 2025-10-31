@@ -9,5 +9,6 @@ class EventName(Enum):
     CURRENT_TRACK_URI = "CurrentTrackURI"
     AV_TRANSPORT_URI = "AVTransportURI"
     LAST_CHANGE = "LastChange"
-    NextAVTransportURI = "NextAVTransportURI"
-    NextAVTransportURIMetaData = "NextAVTransportURIMetaData"
+    NEXT_AV_TRANSPORT_URI = "NextAVTransportURI"
+    NEXT_AV_TRANSPORT_URI_META_DATA = "NextAVTransportURIMetaData"
+    CURRENT_TRACK_DURATION = "CurrentTrackDuration"

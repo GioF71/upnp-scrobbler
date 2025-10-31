@@ -6,6 +6,7 @@ from async_upnp_client.client_factory import UpnpFactory
 from async_upnp_client.client import UpnpDevice
 from async_upnp_client.profiles.dlna import DmrDevice
 from async_upnp_client.utils import CaseInsensitiveDict
+from util import print
 
 
 async def discover_dmr_devices(source, timeout) -> set[CaseInsensitiveDict]:

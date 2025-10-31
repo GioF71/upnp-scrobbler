@@ -9,7 +9,6 @@ import xmltodict
 import os
 import datetime
 import pylast
-import socket
 import webbrowser
 import random
 import string
@@ -27,6 +26,7 @@ from async_upnp_client.const import DeviceInfo
 from song import Song, copy_song, same_song
 from player_state import PlayerState, get_player_state
 from util import duration_str_to_sec
+from util import get_ip
 
 from event_name import EventName
 
@@ -34,11 +34,14 @@ import config
 import constants
 import scanner
 from subsonic import ScrobblerSubsonicConfiguration
-from subsonic import get_subsonic_config
 from subsonic import get_song_id as get_subsonic_song_id
 from subsonic import get_song_by_id as get_subsonic_song_by_id
 from subsonic import scrobble_song as scrobble_subsonic_song
+from subsonic import get_subsonic_config_keys
+from subsonic import get_single_subsonic_config
+from subsonic import find_song as find_subsonic_song
 from subsonic_connector.song import Song as SubsonicSong
+from util import print
 
 key_title: str = "dc:title"
 key_subtitle: str = "dc:subtitle"
@@ -54,12 +57,6 @@ g_items: dict = {}
 
 g_event_handler = None
 g_player_state: PlayerState = PlayerState.UNKNOWN
-
-_print = print
-
-
-def print(*args, **kw):
-    _print("[%s]" % (datetime.datetime.now()), *args, **kw)
 
 
 async def create_device(description_url: str) -> UpnpDevice:
@@ -126,8 +123,12 @@ def execute_scrobble(current_song: Song) -> bool:
     elapsed: float = now - current_song.playback_start
     over_threshold: bool = elapsed >= config.get_duration_threshold()
     over_half: bool = elapsed >= (song_duration / 2.0)
-    print(f"execute_scrobble duration [{song_duration}] now [{now}] "
-          f"playback_start [{current_song.playback_start}] -> elapsed [{elapsed}] "
+    print(f"execute_scrobble for "
+          f"[{song_to_short_string(current_song)}] "
+          f"duration [{song_duration}] "
+          # f"now [{now}] "
+          # f"playback_start [{current_song.playback_start}] -> "
+          f"elapsed [{elapsed}] "
           f"over_threshold [{over_threshold}] over_half [{over_half}]")
     if over_threshold or over_half:
         print(f"execute_scrobble we can scrobble [{song_to_short_string(current_song)}] "
@@ -143,13 +144,10 @@ def execute_scrobble(current_song: Song) -> bool:
             scrobble_provider_count += 1
         else:
             print("execute_scrobble not scrobbling to LAST.fm because it is not configured")
-        if get_subsonic_config():
-            subsonic_scrobble(
-                current_song=current_song,
-                submission=True)
-            scrobble_provider_count += 1
-        else:
-            print("execute_scrobble not scrobbling to subsonic because there are no configured servers")
+        ss_cnt: int = subsonic_scrobble(
+            current_song=current_song,
+            submission=True)
+        scrobble_provider_count += ss_cnt
         print(f"Scrobble success (provider count=[{scrobble_provider_count}]) "
               f"for [{song_to_short_string(current_song)}]")
         return True
@@ -211,9 +209,9 @@ def create_last_fm_network_session_key(
     # TODO can we allow to dump key and secret?
     # print(f"Last.FM key [{last_fm_key}] secret [{last_fm_secret}]")
     session_key_file_exists: bool = os.path.exists(session_key_file_name)
-    print(f"LAST.fm session file exists [{session_key_file_exists}] at path [{session_key_file_name}]")
     # can we validate the LAST.fm connection?
     if not session_key_file_exists:
+        print(f"LAST.fm session file does not exist at path [{session_key_file_name}]")
         skg: pylast.SessionKeyGenerator = pylast.SessionKeyGenerator(network)
         url = skg.get_web_auth_url()
         print(f"Please authorize this script to access your account: {url}\n")
@@ -267,10 +265,9 @@ def do_update_now_playing(current_song: Song):
         last_fm_now_playing(current_song)
     else:
         print("do_update_now_playing not updating now playing on LAST.fm because it not configured")
-    if get_subsonic_config():
-        subsonic_scrobble(
-            current_song=current_song,
-            submission=False)
+    subsonic_scrobble(
+        current_song=current_song,
+        submission=False)
 
 
 def last_fm_now_playing(current_song: Song):
@@ -311,38 +308,76 @@ def last_fm_scrobble(current_song: Song):
         timestamp=unix_timestamp)
 
 
-def subsonic_scrobble(current_song: Song, submission: bool = True):
-    config: ScrobblerSubsonicConfiguration = get_subsonic_config()
-    if not config:
-        return
+def subsonic_scrobble(current_song: Song, submission: bool = True) -> int:
     if (current_song.av_transport_uri is None and
             current_song.track_uri is None):
         print("subsonic_scrobble no uri is available for song.")
-        return
+    scrobble_type: str = "submission" if submission else "now playing"
+    ss_cnt: int = 0
     uri: str = current_song.av_transport_uri if current_song.av_transport_uri else current_song.track_uri
-    subsonic_song_id: str = get_subsonic_song_id(uri=uri, config=config)
-    if not subsonic_song_id:
-        print(f"subsonic_scrobble cannot get a song_id for uri [{uri}]")
-        return
-    subsonic_song: SubsonicSong = (get_subsonic_song_by_id(
-                                   song_id=subsonic_song_id,
-                                   config=config)
-                                   if subsonic_song_id else None)
-    if not subsonic_song:
-        print(f"subsonic_scrobble cannot get a song for song_id [{subsonic_song_id}]")
-        return
-    # song title must match
-    if subsonic_song.getTitle() == current_song.title:
-        # we have a match, go for the scrobble.
-        scrobble_subsonic_song(
-            song=subsonic_song,
-            config=config,
-            submission=submission)
-        print(f"subsonic_scrobble scrobbled song_id [{subsonic_song_id}] "
-              f"mode [{'Scrobble' if submission else 'Now Playing'}]")
-    else:
-        print(f"subsonic_scrobble found wrong song for [{subsonic_song_id}]: "
-              f"title is [{subsonic_song.getTitle()}], should be [{current_song.title}]")
+    subsonic_key: str
+    for subsonic_key in get_subsonic_config_keys():
+        config: ScrobblerSubsonicConfiguration = get_single_subsonic_config(subsonic_key=subsonic_key)
+        # is it a now playing (submission=False)?
+        # if so, now playing must be enabled on the current subsonic server in order to go on
+        if not submission and not config.enable_now_playing:
+            # print(f"subsonic_scrobble subsonic_key [{subsonic_key}] "
+            #       f"now playing not enabled, skipping")
+            continue
+        subsonic_song_id: str = get_subsonic_song_id(uri=uri, config=config) if uri else None
+        if not subsonic_song_id:
+            print(f"subsonic_scrobble subsonic_key [{subsonic_key}] "
+                  f"cannot get a song_id for uri [{uri}]")
+            # continue
+        # if we have a subsonic song id we try to load that long.
+        subsonic_song: SubsonicSong = (get_subsonic_song_by_id(
+                                       song_id=subsonic_song_id,
+                                       config=config)
+                                       if subsonic_song_id else None)
+        # report if we did not find the song
+        if subsonic_song_id and not subsonic_song:
+            print(f"subsonic_scrobble subsonic_key [{subsonic_key}] "
+                  f"cannot get a song for song_id [{subsonic_song_id}] -> "
+                  f"might belong to a different server")
+        # if we have loaded the song we need the title to match, otherwise we reset subsonic_song
+        if subsonic_song:
+            if not subsonic_song.getTitle().lower() == current_song.title.lower():
+                print(f"subsonic_scrobble found song [{subsonic_song.getId()}] on [{subsonic_key}] but "
+                      f"song title [{subsonic_song.getTitle()}] "
+                      f"does not match [{current_song.title}] "
+                      "the song might belong to a different server")
+                subsonic_song = None
+        # if we didn't find the song yet and this is a submission,
+        # we can try and see if the song is available on the server
+        if not subsonic_song and (submission and config.allow_match):
+            # find_subsonic_song executes all matching
+            print(f"subsonic_scrobble [{scrobble_type}] on [{subsonic_key}] -> no song_id, trying to match song ...")
+            subsonic_song = find_subsonic_song(
+                config=config,
+                song_title=current_song.title,
+                song_artist=current_song.artist,
+                song_album=current_song.album)
+            print(f"subsonic_scrobble [{scrobble_type}] on [{subsonic_key}] -> matched [{subsonic_song is not None}]")
+        if subsonic_song:
+            # we have a match somehow, so let's go for the scrobble.
+            print(f"subsonic_scrobble found match for [{current_song.title}] "
+                  f"from [{current_song.album}] "
+                  f"by [{current_song.artist}] "
+                  f"on [{subsonic_key}] -> "
+                  f"song_id [{subsonic_song.getId()}]")
+            scrobble_subsonic_song(
+                song=subsonic_song,
+                config=config,
+                submission=submission)
+            ss_cnt += 1
+            print(f"subsonic_scrobble subsonic_key [{subsonic_key}] "
+                  f"scrobbled song_id [{subsonic_song_id}] "
+                  f"mode [{'Scrobble' if submission else 'Now Playing'}]")
+        # else:
+        #     print(f"subsonic_scrobble subsonic_key [{subsonic_key}] "
+        #           f"found wrong song for [{subsonic_song_id}]: "
+        #           f"title is [{subsonic_song.getTitle()}], should be [{current_song.title}]")
+    return ss_cnt
 
 
 def get_first_artist(artist: str) -> str:
@@ -367,10 +402,10 @@ def metadata_to_new_current_song(items: dict[str, any], track_uri: str = None) -
 
 def on_playing(song: Song):
     update_now_playing: bool = config.get_enable_now_playing()
-    song_info: str = (f"[{song.title}] from [{song.album}] "
-                      f"by [{get_first_artist(song.artist)}]")
-    if song:
-        print(f"Updating [now playing] [{'enabled' if update_now_playing else 'disabled'}] for song {song_info}")
+    # if song:
+    #     song_info: str = (f"[{song.title}] from [{song.album}] "
+    #                       f"by [{get_first_artist(song.artist)}]")
+    #     print(f"Updating [now playing] [{'enabled' if update_now_playing else 'disabled'}] for song {song_info}")
     if update_now_playing and song:
         do_update_now_playing(song)
 
@@ -527,7 +562,22 @@ def on_valid_avtransport_event(
     event_id = ''.join(random.choices(string.ascii_letters + string.digits, k=event_id_length))
     sv_dict: dict[str, any] = service_variables_by_name(service_variables)
     print(f"on_valid_avtransport_event [{event_id}] keys [{sv_dict.keys()}]")
-    # must have transport state
+    # ignore some events ...
+    if (EventName.NEXT_AV_TRANSPORT_URI.value in sv_dict.keys() and
+        EventName.NEXT_AV_TRANSPORT_URI_META_DATA.value in sv_dict.keys() and
+            len(sv_dict.keys()) == 2):
+        # print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
+        return
+    if (EventName.LAST_CHANGE.value in sv_dict.keys() and len(sv_dict.keys()) == 1):
+        # print(f"on_valid_avtransport_event keys [{sv_dict.keys()}]")
+        return
+    if (EventName.CURRENT_TRACK_DURATION.value in sv_dict.keys() and len(sv_dict.keys()) == 1):
+        # print(f"on_valid_avtransport_event keys [{sv_dict.keys()}] -> "
+        #       f"[{sv_dict[EventName.CURRENT_TRACK_DURATION.value]}] -> "
+        #       f"[{duration_str_to_sec(sv_dict[EventName.CURRENT_TRACK_DURATION.value])}]")
+        # shall we do something with this?
+        return
+    # preserve previous player state
     previous_player_state: PlayerState = g_player_state
     # see if we have a new player state
     curr_player_state: PlayerState = get_current_player_state(sv_dict)
@@ -687,8 +737,7 @@ def on_avtransport_event(
         service: UpnpService,
         service_variables: Sequence[UpnpStateVariable]) -> None:
     """Handle a UPnP AVTransport event."""
-    # special handling for DLNA LastChange state variable
-    print(f"on_avtransport_event [{service.service_type}]")
+    print(f"on_avtransport_event [{service.service_type}] len(service_variables)=[{len(service_variables)}]")
     sv_dict: dict[str, any] = service_variables_by_name(service_variables)
     if config.get_dump_event_keys():
         print(f"on_avtransport_event Keys in event [{sv_dict.keys()}]")
@@ -698,6 +747,7 @@ def on_avtransport_event(
             print(f"Event Key [{event_key}] -> [{sv_dict[event_key]}]")
     if config.get_dump_upnp_data():
         print(f"on_avtransport_event service_variables [{service_variables}]")
+    # special handling for DLNA LastChange state variable
     if (len(service_variables) == 1 and
             service_variables[0].name == EventName.LAST_CHANGE.value):
         last_change = service_variables[0]
@@ -841,31 +891,19 @@ async def async_main() -> None:
                 print(f"An error occurred [{type(ex)}] [{ex}], retrying ...")
 
 
-def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0)
-    try:
-        # doesn't even have to be reachable
-        s.connect(('8.8.8.8', 1))
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
-    return IP
-
-
 def main() -> None:
     last_fm_config_dir: str = config.get_lastfm_config_dir()
     if os.path.exists(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value)):
         config.load_env_file(os.path.join(last_fm_config_dir, constants.Constants.LAST_FM_CONFIG.value))
+    subsonic_config_files: dict[str, list[str]] = config.find_subsonic_env_files()
+    print(f"subsonic config files: {subsonic_config_files}")
     subsonic_config_dir: str = config.get_subsonic_config_dir()
     if os.path.exists(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_SERVER.value)):
         config.load_env_file(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_SERVER.value))
     if os.path.exists(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_CREDENTIALS.value)):
         config.load_env_file(os.path.join(subsonic_config_dir, constants.Constants.SUBSONIC_CREDENTIALS.value))
-    subsonic_configuration: ScrobblerSubsonicConfiguration = get_subsonic_config()
-    print(f"Subsonic is configured: [{subsonic_configuration is not None}]")
+    # subsonic_configuration: ScrobblerSubsonicConfiguration = get_subsonic_config()
+    print(f"Subsonic is configured: [{config.is_subsonic_configured()}]")
     # early initialization of last.fm network
     if config.is_last_fm_configured():
         create_last_fm_network()
