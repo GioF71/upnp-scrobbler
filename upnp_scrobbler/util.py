@@ -1,3 +1,15 @@
+import datetime
+import socket
+import re
+
+
+_print = print
+
+
+def print(*args, **kw):
+    _print("[%s]" % (datetime.datetime.now()), *args, **kw)
+
+
 def duration_str_to_sec(duration: str) -> float:
     # print(f"duration_str_to_sec duration=[{duration}] ...")
     by_dot: list[str] = duration.split(".")
@@ -46,10 +58,43 @@ def duration_str_to_sec(duration: str) -> float:
     return result
 
 
-def is_true(str_value: str | None) -> bool:
-    if (str_value and (str_value.lower() == "true"
-                       or str_value == "1"
-                       or str_value.lower() == "y"
-                       or str_value.lower() == "yes")):
+def is_true(v: str | bool | None) -> bool:
+    if v is None:
+        return False
+    if isinstance(v, bool):
+        return bool(v)
+    if (v.lower() == "true"
+        or v == "1"
+            or v.lower() == "y"
+            or v.lower() == "yes"):
         return True
     return False
+
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    current_ip: str = None
+    try:
+        # doesn't even have to be reachable
+        s.connect(('8.8.8.8', 1))
+        current_ip = s.getsockname()[0]
+    except Exception:
+        current_ip = '127.0.0.1'
+    finally:
+        s.close()
+    return current_ip
+
+
+def to_alphanumeric(v: str):
+    alpha_and_digits: str = "[^a-zA-Z0-9]+"
+    clean: str = re.sub(alpha_and_digits, " ", v)
+    return " ".join(list(map(lambda x: x.strip(), clean.split(" "))))
+
+
+def joined_words(s: str) -> str:
+    return to_alphanumeric(s)
+
+
+def joined_words_lower(s: str) -> str:
+    return joined_words(s).lower()

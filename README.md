@@ -20,12 +20,14 @@ Docker Images|[Docker Hub](https://hub.docker.com/repository/docker/giof71/upnp-
 
 ## Task List
 
-- [x] Scrobbling to last.fm from a WiiM device, using Tidal Connect
-- [x] Scrobbling to last.fm from a WiiM device, using it as a generic UPnP Renderer
-- [x] Scrobbling to last.fm from gmrender-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)), using it as a generic UPnP Renderer
+- [x] Scrobbling from a WiiM device as a generic UPnP Renderer
+- [x] Scrobbling from a WiiM device when using Tidal Connect
+- [x] Scrobbling to gmrender-resurrect ([Source](https://github.com/hzeller/gmrender-resurrect) and [Docker image](https://github.com/gioF71/gmrender-resurrect-docker)) as a generic UPnP Renderer
+- [x] Scrobbling to mpd + upmpdcli in UPnP-AV mode
 - [x] Scrobbling to a subsonic server
 - [x] Enable "now playing" for subsonic
-- [ ] Allow multiple subsonic servers
+- [x] Enable song matching for subsonic
+- [x] Allow multiple subsonic servers
 - [ ] Scrobbling to listenbrainz
 - [ ] Scrobbling to libre.fm
 
@@ -90,7 +92,15 @@ LAST_FM_PASSWORD_HASH=xxxx
 
 #### Subsonic Configuration files
 
-Subsonic related variables should be save in files inside the `<config-directory>` volume, exacly at `<config-directory>/upnp-scrobbler/subsonic/subsonic.server.env`, and optionally `<config-directory>/upnp-scrobbler/subsonic/subsonic.credentials.env` (if you want to separate credentials). Example for both files:  
+Subsonic related variables should be save in files inside the `<config-directory>` volume, with files names like `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.server.env`, and optionally `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.credentials.env` (if you want to separate credentials).  
+Example file names:  
+
+```text
+lightweight-music-server.server.env
+lightweight-music-server.credentials.env
+```
+
+Example of content for the mentioned files:  
 
 ```text
 SUBSONIC_BASE_URL=https://your-subsonic-server.your-domain.com
@@ -102,6 +112,9 @@ SUBSONIC_LEGACY_AUTH=true
 SUBSONIC_PORT=443
 # optional server path
 # SUBSONIC_SERVER_PATH=server-path
+# optional enable now playing, defaults to true
+# SUBSONIC_ENABLE_NOW_PLAYING=false
+# SUBSONIC_ENABLE_SONG_MATCH=true
 ```
 
 and:
@@ -113,7 +126,20 @@ SUBSONIC_USERNAME=your-username
 SUBSONIC_PASSWORD=your-password
 ```
 
-You can collapse all the variables in one file, but its name must be `subsonic.server.env`.  
+You can collapse all the variables in one file for each subsonic configuration, but its name must be `<subsonic_key>.server.env` for each value given to `subsonic_key`.  
+
+The subsonic configuration variables are listed in the following table:
+
+NAME|DESCRIPTION
+:---|:---
+SUBSONIC_BASE_URL|Server base URL, e.g. https://navidrome.mydomain.com
+SUBSONIC_PORT|Server port, will default to 443 or 443 depending on SUBSONIC_BASE_URL
+SUBSONIC_SERVER_PATH|Optional server path
+SUBSONIC_USERNAME|Server username
+SUBSONIC_PASSWORD|Server password or key
+SUBSONIC_LEGACY_AUTH|Legay authentication (`true` or `false`), defaults to `false`
+SUBSONIC_ENABLE_SONG_MATCH|Allow to find the song by title, artist(s) and album, defaults to `true`
+SUBSONIC_ENABLE_NOW_PLAYING|Allow to scrobble in Now Playing mode when a song is matched (as opposed to found using the id in the track url), defaults to `true`
 
 ### LAST.fm authentication
 
@@ -152,6 +178,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-10-26|Add support for "Now Playing" on subsonic (see [#16](https://github.com/GioF71/upnp-scrobbler/issues/16))
 2025-10-26|Add support for "Now Playing" on subsonic (see [#14](https://github.com/GioF71/upnp-scrobbler/issues/14))
 2025-10-10|Don't assume LAST.fm is configured (see [#12](https://github.com/GioF71/upnp-scrobbler/issues/12))
 2025-09-14|Improved logging during authentication

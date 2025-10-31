@@ -94,3 +94,31 @@ def get_config_dir() -> str:
     if not config_dir:
         config_dir = platformdirs.user_config_dir()
     return config_dir
+
+
+def is_subsonic_configured() -> bool:
+    return len(list(find_subsonic_env_files().keys())) > 0
+
+
+def find_subsonic_env_files() -> dict[str, list[str]]:
+    path: str = get_subsonic_config_dir()
+    if not path or not os.path.exists(path) or not os.path.isdir(path):
+        return []
+    file_dict: dict[str, list[str]] = {}
+    files: list[str] = os.listdir(path)
+    file: str
+    for file in files:
+        if not os.path.isdir(os.path.join(path, file)):
+            # found a file, is it a valid subsonic env file?
+            if file.endswith(".env"):
+                splitted: list[str] = file.split(".")
+                # length must be exactly 3
+                if len(splitted) == 3:
+                    # key already exists?
+                    lst: list[str] = file_dict[splitted[0]] if splitted[0] in file_dict else None
+                    if not lst:
+                        lst = [file]
+                        file_dict[splitted[0]] = lst
+                    else:
+                        lst.append(file)
+    return file_dict

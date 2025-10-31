@@ -30,6 +30,20 @@
                 "PYTHONPATH": "${workspaceFolder}/upnp_scrobbler:${env:PYTHONPATH}"
             },
             "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: regex test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/regex_test.py",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/upnp_scrobbler:${env:PYTHONPATH}"
+            },
+            "justMyCode": false
         }
+
     ]
 }
