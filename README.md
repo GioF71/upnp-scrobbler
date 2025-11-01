@@ -92,7 +92,7 @@ LAST_FM_PASSWORD_HASH=xxxx
 
 #### Subsonic Configuration files
 
-Subsonic related variables should be save in files inside the `<config-directory>` volume, with files names like `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.server.env`, and optionally `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.credentials.env` (if you want to separate credentials).  
+Subsonic related variables should be saved in files inside the `<config-directory>` volume, with files names like `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.server.env`, and optionally `<config-directory>/upnp-scrobbler/subsonic/<subsonic_key>.credentials.env` (if you want to separate credentials).  
 Example file names:  
 
 ```text
