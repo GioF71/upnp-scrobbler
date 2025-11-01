@@ -133,7 +133,7 @@ The subsonic configuration variables are listed in the following table:
 NAME|DESCRIPTION
 :---|:---
 SUBSONIC_BASE_URL|Server base URL, e.g. https://navidrome.mydomain.com
-SUBSONIC_PORT|Server port, will default to 443 or 443 depending on SUBSONIC_BASE_URL
+SUBSONIC_PORT|Server port, will default to 443 or 80 depending on SUBSONIC_BASE_URL
 SUBSONIC_SERVER_PATH|Optional server path
 SUBSONIC_USERNAME|Server username
 SUBSONIC_PASSWORD|Server password or key
