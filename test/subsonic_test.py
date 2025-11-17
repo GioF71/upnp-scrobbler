@@ -78,10 +78,16 @@ def test_scrobble_by_match(match_title: str, match_artist: str, match_album: str
                   f"by [{matched.getArtist()}] "
                   f"on [{subsonic_key}]")
         else:
-            print(f"Song was not matched on [{subsonic_key}]")
+            print(f"Song [{match_title}] by [{match_artist}] from [{match_album}] "
+                  f"was not matched on [{subsonic_key}]")
 
 
 to_match: list = [
+    (
+        "you & me",
+        "The Cranberries",
+        "something else"
+    ),
     (
         "evermore",
         "taylor swift/bon iver",

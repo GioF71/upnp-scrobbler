@@ -178,6 +178,7 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2025-11-17|Search subsonic tracks using the exact title, compare removing non alphanumeric characters
 2025-10-26|Add support for "Now Playing" on subsonic (see [#16](https://github.com/GioF71/upnp-scrobbler/issues/16))
 2025-10-26|Add support for "Now Playing" on subsonic (see [#14](https://github.com/GioF71/upnp-scrobbler/issues/14))
 2025-10-10|Don't assume LAST.fm is configured (see [#12](https://github.com/GioF71/upnp-scrobbler/issues/12))
