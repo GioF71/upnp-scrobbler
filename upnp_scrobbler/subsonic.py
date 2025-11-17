@@ -2,7 +2,6 @@ import os
 import constants
 import config
 from util import is_true
-from util import joined_words
 from util import joined_words_lower
 from subsonic_connector.song import Song as SubsonicSong
 from subsonic_connector.connector import Connector as SubsonicConnector
@@ -256,7 +255,7 @@ def find_song(
     subsonic_config: SubsonicConnectorConfiguration = SubsonicConnectorConfiguration(cfg=config)
     cn: SubsonicConnector = SubsonicConnector(configuration=subsonic_config)
     search_counter: int = 0
-    search_song_title: str = joined_words_lower(song_title)
+    match_song_title: str = joined_words_lower(song_title)
     while (search_counter < max_search_size):
         search_size: int = None
         search_offset: int = None
@@ -271,7 +270,7 @@ def find_song(
             # we're finished without a match
             return None
         sr: SubsonicSearchResult = cn.search(
-            query=search_song_title,
+            query=song_title,
             songCount=search_size,
             artistCount=0,
             albumCount=0,
@@ -283,7 +282,7 @@ def find_song(
         for current_song in sr.getSongs():
             search_counter += 1
             # must match title
-            match: bool = search_song_title == joined_words_lower(current_song.getTitle())
+            match: bool = match_song_title == joined_words_lower(current_song.getTitle())
             # must match artist(s)
             match = match and match_song_with_artist(current_song, song_artist)
             # match album if required
