@@ -143,7 +143,7 @@ SUBSONIC_ENABLE_NOW_PLAYING|Allow to scrobble in Now Playing mode when a song is
 
 ### LAST.fm authentication
 
-If username and password (hash or plaintext) is not provided, the application will prompt you to authorize the app.  
+If username and password (hash or plaintext) are not provided, the application will prompt you to authorize the app.  
 You will need to watch the logs, al least for the first run.  
 Please note that API key and secret are still required.  
 
