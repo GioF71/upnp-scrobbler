@@ -83,8 +83,8 @@ def service_from_device(
 def song_to_short_string(song: Song) -> str:
     if song:
         return (f"Song [{song.title}] from [{song.album}] by [{song.artist}] "
-                f"TrackUri set [{song.track_uri is not None}] "
-                f"AvTransportUri set [{song.av_transport_uri is not None}]")
+                f"TrackUri avail [{song.track_uri is not None}] "
+                f"AvTransportUri avail [{song.av_transport_uri is not None}]")
     else:
         return "<NO_DATA>"
 
