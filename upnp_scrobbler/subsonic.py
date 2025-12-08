@@ -249,8 +249,8 @@ def find_song(
         song_artist: str,
         song_album: str = None,
         initial_search_size: int = 10,
-        next_search_size: int = 30,
-        max_search_size: int = 100) -> SubsonicSong:
+        next_search_size: int = 50,
+        max_search_size: int = 310) -> SubsonicSong:
     cmp_song_album: str = joined_words_lower(song_album) if song_album else None
     subsonic_config: SubsonicConnectorConfiguration = SubsonicConnectorConfiguration(cfg=config)
     cn: SubsonicConnector = SubsonicConnector(configuration=subsonic_config)
