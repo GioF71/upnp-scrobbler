@@ -1,7 +1,7 @@
 # UPnP Scrobbler
 
 A simple LAST.fm scrobbler for WiiM devices.  
-It can now also scrobble to a subsonic server.  
+It can now also scrobble to subsonic servers.  
 
 ## References
 
