@@ -1,4 +1,4 @@
-FROM library/python:slim AS base
+FROM library/python:3.13-slim AS base
 
 RUN apt-get update
 RUN apt-get install -y build-essential
