@@ -915,7 +915,8 @@ def main() -> None:
     print(f"Dump UPnP Data: [{config.get_dump_upnp_data()}]")
     print(f"Dump UPnP Event Key/Values: [{config.get_dump_event_key_values()}]")
     """Set up async loop and run the main program."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(async_main())
     except KeyboardInterrupt:
