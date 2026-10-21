@@ -178,6 +178,8 @@ Start the container with the following:
 
 DATE|DESCRIPTION
 :---|:---
+2026-10-21|Bumped to python 3.15, thanks to [@theikid](https://github.com/theikid), see [#35](https://github.com/GioF71/upnp-scrobbler/issues/35)
+2026-10-20|Misc security updates
 2025-11-17|Search subsonic tracks using the exact title, compare removing non alphanumeric characters
 2025-10-26|Add support for "Now Playing" on subsonic (see [#16](https://github.com/GioF71/upnp-scrobbler/issues/16))
 2025-10-26|Add support for "Now Playing" on subsonic (see [#14](https://github.com/GioF71/upnp-scrobbler/issues/14))
